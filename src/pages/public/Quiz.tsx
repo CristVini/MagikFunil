@@ -1,19 +1,43 @@
-import { useParams, useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
-import { supabase } from '@lib/supabase';
-import { useQuiz } from '@hooks/useQuiz';
-import { ArrowRight, ChevronLeft } from 'lucide-react';
+"use client";
+
+import { useParams, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { supabase } from "@lib/supabase";
+import { useQuiz } from "@hooks/useQuiz";
+import { ArrowRight, ChevronLeft, Loader2 } from "lucide-react";
+import { Fireflies } from "../public/Landing";
 
 export function Quiz() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const { questions, currentStep, scores, answer, next, previous, finish, loading } = useQuiz(slug!);
+  const { questions, currentStep, scores, answer, next, previous, finish, loading, fetchQuiz } = useQuiz(slug!);
+  const [tenant, setTenant] = useState<any>(null);
+  const [theme, setTheme] = useState<any>(null);
   const question = questions[currentStep];
+
+  useEffect(() => {
+    // Load tenant for theme
+    supabase.from("tenants").select("*").eq("slug", slug).single().then(({ data }) => {
+      if (data) setTenant(data);
+    });
+  }, [slug]);
+
+  useEffect(() => {
+    fetchQuiz(slug!).then(() => {
+      // Theme will be applied by PublicLayout, but we can ensure it's set
+    });
+  }, [slug]);
 
   if (loading || !question) {
     return (
-      <div className="min-h-screen bg-stone-50 flex items-center justify-center" style={{ fontFamily: 'var(--font-sans)' }}>
-        <div className="animate-pulse-soft text-stone-500">Carregando quiz...</div>
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center" style={{ fontFamily: "var(--font-sans)" }}>
+        <Fireflies />
+        <div className="absolute inset-0 flex items-center justify-center z-10">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="w-10 h-10 text-amber-500 animate-spin" />
+            <p className="text-stone-500">Preparando seu quiz...</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -30,9 +54,12 @@ export function Quiz() {
   };
 
   return (
-    <div className="min-h-screen bg-stone-50" style={{ fontFamily: 'var(--font-sans)' }}>
-      {/* Progress */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-stone-50 border-b border-stone-200 px-6 py-4">
+    <div className="min-h-screen bg-stone-50" style={{ fontFamily: "var(--font-sans)" }}>
+      {/* Fireflies Background */}
+      <Fireflies className="fixed inset-0 -z-10" />
+
+      {/* Progress Bar - Fixed at top */}
+      <div className="fixed top-0 left-0 right-0 z-50 bg-stone-50/95 backdrop-blur-sm border-b border-stone-200 px-6 py-4">
         <div className="max-w-3xl mx-auto">
           <div className="flex items-center justify-center gap-3 mb-4">
             <div className="h-[1px] w-6 bg-stone-300" />
@@ -50,40 +77,58 @@ export function Quiz() {
         </div>
       </div>
 
-      <main className="pt-24 pb-20 px-6" style={{ fontFamily: 'var(--font-sans)' }}>
+      <main className="pt-24 pb-20 px-6" style={{ fontFamily: "var(--font-sans)" }}>
         <div className="max-w-3xl mx-auto">
           <div className="animate-in fade-in duration-300">
-            <h2 className="text-3xl md:text-5xl font-display font-bold text-stone-950 text-center leading-tight mb-12 px-4" style={{ fontFamily: 'var(--font-display)' }}>
+            {/* Question */}
+            <h2 className="text-3xl md:text-5xl font-display font-bold text-stone-950 text-center leading-tight mb-12 px-4" style={{ fontFamily: "var(--font-display)" }}>
               {question.text}
             </h2>
 
+            {/* Options Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl mx-auto">
               {question.options.map((option, index) => (
                 <button
-                  key={index}
+                  key={`${currentStep}-${index}`}
                   onClick={() => handleOptionClick(option.profile_ids)}
-                  disabled={loading}
-                  className="group relative w-full text-left p-6 md:p-8 bg-white border border-stone-200 rounded-2xl hover:border-amber-300 hover:bg-amber-50/50 transition-all duration-200 active:scale-[0.98] disabled:opacity-50"
+                  disabled={false}
+                  className="group relative w-full text-left p-6 md:p-8 bg-white border border-stone-200 rounded-2xl md:rounded-3xl hover:border-amber-300 hover:bg-amber-50/50 transition-all duration-300 active:scale-[0.98]"
                 >
                   <div className="flex flex-col gap-2">
                     <span className="text-base md:text-lg text-stone-700 group-hover:text-stone-950 transition-colors leading-relaxed">
                       {option.text}
                     </span>
-                    <div className="h-[1px] w-6 bg-stone-200 group-hover:w-full group-hover:bg-amber-400 transition-[width,background-color] duration-300" />
+                    {/* Animated underline */}
+                    <div className="h-[1px] w-6 bg-stone-200 group-hover:w-full group-hover:bg-amber-400 transition-[width,background-color] duration-400" />
                   </div>
                 </button>
               ))}
             </div>
 
-            {currentStep > 0 && (
-              <button
-                onClick={previous}
-                className="mt-8 w-full md:w-auto mx-auto md:mx-0 flex items-center justify-center gap-2 px-6 py-3 bg-white border border-stone-200 rounded-full text-stone-600 font-medium hover:bg-stone-50 hover:border-stone-300 transition-colors"
-              >
-                <ChevronLeft size={18} />
-                Voltar
-              </button>
-            )}
+            {/* Navigation */}
+            <div className="mt-12 flex justify-center md:justify-between gap-4">
+              {currentStep > 0 && (
+                <button
+                  onClick={previous}
+                  className="px-6 py-3 bg-white border border-stone-200 rounded-full text-stone-600 font-medium hover:bg-stone-50 hover:border-stone-300 transition-colors flex items-center gap-2"
+                >
+                  <ChevronLeft size={18} />
+                  Voltar
+                </button>
+              )}
+              {currentStep === questions.length - 1 && (
+                <button
+                  onClick={() => {
+                    // The last answer click triggers finish via handleOptionClick
+                    // This is just a visual placeholder - actual submit happens on option click
+                  }}
+                  className="px-8 py-3 bg-stone-950 text-stone-50 rounded-full font-semibold text-base uppercase tracking-wider hover:bg-stone-800 transition-colors flex items-center gap-2 opacity-50 cursor-not-allowed"
+                >
+                  Selecione uma opção acima
+                  <ArrowRight size={18} />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </main>

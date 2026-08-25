@@ -5,6 +5,8 @@ import { AdminLayout } from './layouts/AdminLayout';
 import { Landing } from './pages/public/Landing';
 import { Quiz } from './pages/public/Quiz';
 import { Result } from './pages/public/Result';
+import { ProductCapture } from './pages/public/ProductCapture';
+import { FunnelUnavailable } from './pages/public/FunnelUnavailable';
 import { Login } from './pages/auth/Login';
 import { Register } from './pages/auth/Register';
 import { TenantDashboard } from './pages/dashboard/TenantDashboard';
@@ -28,6 +30,8 @@ function App() {
         <Route path="/f/:slug" element={<Landing />} />
         <Route path="/f/:slug/quiz" element={<Quiz />} />
         <Route path="/f/:slug/resultado" element={<Result />} />
+        <Route path="/f/:slug/produto" element={<ProductCapture />} />
+        <Route path="/f/:slug/indisponivel" element={<FunnelUnavailable />} />
       </Route>
 
       {/* ===== AUTH ===== */}
