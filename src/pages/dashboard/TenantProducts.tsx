@@ -1,364 +1,189 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@lib/supabase';
-import { useAuth } from '@hooks/useAuth';
-import { Plus, Link2, ExternalLink, Edit, Trash2, Eye, EyeOff, Check, X, Loader2 } from 'lucide-react';
-import { cn } from '@lib/utils';
+import { useState } from "react";
+import { Search, Link2, ExternalLink, Trash2, Package, ShieldAlert, CheckCircle2, Loader2 } from "lucide-react";
+import { MOCK_PRODUCTS, MOCK_PLAN } from "./mockData";
 
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  description: string | null;
-  key_actives: Record<string, string> | null;
-}
-
-interface TenantProduct {
-  id: string;
-  tenant_id: string;
-  product_id: string;
-  redirect_url: string;
-  enabled: boolean;
-  position: number;
-  products: Product;
-}
-
+// Face 2.3 — Produtos: o cliente ativa itens do catálogo pré-criado e
+// cola o link de venda de cada um. Limite é o max_products do plano.
 export function TenantProducts() {
-  const { user } = useAuth();
-  const [tenantProducts, setTenantProducts] = useState<TenantProduct[]>([]);
-  const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<string | null>(null);
-  const [showModal, setShowModal] = useState<Product | null>(null);
-  const [newProductUrl, setNewProductUrl] = useState('');
+  const [products, setProducts] = useState(MOCK_PRODUCTS);
+  const [search, setSearch] = useState("");
+  const [savingUrl, setSavingUrl] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
-  const tenantId = user?.user_metadata?.tenant_id;
+  const activeCount = products.filter(p => p.enabled).length;
+  const maxProducts = MOCK_PLAN.max_products;
+  const atLimit = activeCount >= maxProducts;
 
-  useEffect(() => {
-    loadData();
-  }, [tenantId]);
+  const filteredProducts = products.filter(p =>
+    !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.profileLabel.toLowerCase().includes(search.toLowerCase())
+  );
 
-  const loadData = async () => {
-    if (!tenantId) return;
-    
-    setLoading(true);
-    try {
-      // Carregar produtos do tenant (com redirect_url)
-      const { data: tp } = await supabase
-        .from('tenant_products')
-        .select(`
-          *,
-          products (*)
-        `)
-        .eq('tenant_id', tenantId)
-        .order('position');
-
-      // Carregar todos os produtos disponíveis do template
-      const { data: templateId } = await supabase
-        .from('tenants')
-        .select('template_id')
-        .eq('id', tenantId)
-        .single();
-
-      if (templateId?.template_id) {
-        const { data: products } = await supabase
-          .from('products')
-          .select('*')
-          .eq('template_id', templateId.template_id)
-          .order('display_order');
-        
-        setAvailableProducts(products || []);
-      }
-
-      setTenantProducts((tp || []).map((t: any) => ({ ...t, products: t.products as Product })));
-    } catch (err) {
-      console.error('Erro ao carregar produtos:', err);
-    } finally {
-      setLoading(false);
-    }
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2500);
   };
 
-  const toggleProduct = async (tp: TenantProduct) => {
-    setSaving(tp.id);
-    try {
-      await supabase
-        .from('tenant_products')
-        .update({ enabled: !tp.enabled })
-        .eq('id', tp.id);
-      
-      setTenantProducts(prev => prev.map(p => 
-        p.id === tp.id ? { ...p, enabled: !p.enabled } : p
-      ));
-    } catch (err) {
-      console.error('Erro ao alternar produto:', err);
-    } finally {
-      setSaving(null);
+  const toggleEnabled = (id: string) => {
+    const target = products.find(p => p.id === id);
+    if (!target) return;
+    // Não pode ativar além do limite do plano
+    if (!target.enabled && atLimit) {
+      showToast(`Seu plano ${MOCK_PLAN.name} permite até ${maxProducts} produtos ativos. Faça upgrade para ativar mais.`);
+      return;
     }
+    setProducts(prev => prev.map(p => p.id === id ? { ...p, enabled: !p.enabled } : p));
+    showToast(target.enabled ? "Produto desativado do funil" : "Produto ativado no funil");
   };
 
-  const updateRedirectUrl = async (tp: TenantProduct, url: string) => {
-    setSaving(tp.id);
-    try {
-      await supabase
-        .from('tenant_products')
-        .update({ redirect_url: url })
-        .eq('id', tp.id);
-      
-      setTenantProducts(prev => prev.map(p => 
-        p.id === tp.id ? { ...p, redirect_url: url } : p
-      ));
-    } catch (err) {
-      console.error('Erro ao atualizar URL:', err);
-    } finally {
-      setSaving(null);
-    }
+  const setUrl = (id: string, url: string) => {
+    setProducts(prev => prev.map(p => p.id === id ? { ...p, redirect_url: url } : p));
   };
 
-  const addProduct = async (product: Product) => {
-    if (!tenantId) return;
-    
-    setSaving(product.id);
-    try {
-      const maxPos = Math.max(...tenantProducts.map(p => p.position), 0);
-      const { error } = await supabase
-        .from('tenant_products')
-        .insert({
-          tenant_id: tenantId,
-          product_id: product.id,
-          redirect_url: newProductUrl,
-          enabled: true,
-          position: maxPos + 1,
-        });
-
-      if (!error) {
-        await loadData();
-        setShowModal(null);
-        setNewProductUrl('');
-      }
-    } catch (err) {
-      console.error('Erro ao adicionar produto:', err);
-    } finally {
-      setSaving(null);
-    }
+  const saveUrl = (id: string) => {
+    setSavingUrl(id);
+    setTimeout(() => {
+      setSavingUrl(null);
+      showToast("Link de venda salvo");
+    }, 500);
   };
-
-  const removeProduct = async (tpId: string) => {
-    setSaving(tpId);
-    try {
-      await supabase.from('tenant_products').delete().eq('id', tpId);
-      setTenantProducts(prev => prev.filter(p => p.id !== tpId));
-    } catch (err) {
-      console.error('Erro ao remover produto:', err);
-    } finally {
-      setSaving(null);
-    }
-  };
-
-  const getActivatedProductIds = () => tenantProducts.map(p => p.product_id);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
-      </div>
-    );
-  }
 
   return (
-    <div className="space-y-6" style={{ fontFamily: 'var(--font-sans)' }}>
+    <div className="space-y-6" style={{ fontFamily: "var(--font-sans)" }}>
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-5 right-5 z-50 bg-stone-950 text-stone-50 px-5 py-3 rounded-xl shadow-2xl animate-in fade-in slide-in-from-top-4 duration-200 flex items-center gap-2 text-sm">
+          <CheckCircle2 size={18} className="text-amber-400" />
+          {toast}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-display font-bold text-stone-950" style={{ fontFamily: 'var(--font-display)' }}>
+          <h1 className="text-3xl font-display font-bold text-stone-950" style={{ fontFamily: "var(--font-display)" }}>
             Meus Produtos
           </h1>
-          <p className="text-stone-500 mt-1">
-            Ative os produtos do catálogo e cole o link de venda de cada um
-          </p>
+          <p className="text-stone-500 mt-1">Ative os produtos do catálogo e cole o link de venda de cada um</p>
         </div>
-        {availableProducts.some(p => !getActivatedProductIds().includes(p.id)) && (
-          <button
-            onClick={() => setShowModal(availableProducts.find(p => !getActivatedProductIds().includes(p.id))!)}
-            className="px-4 py-2 bg-amber-500 text-stone-950 rounded-xl font-semibold hover:bg-amber-400 transition-colors flex items-center gap-2"
-          >
-            <Plus size={18} />
-            Adicionar Produto
+
+        {/* Indicador de limite do plano */}
+        <div className="px-4 py-3 bg-white rounded-2xl border border-stone-200 flex items-center gap-3">
+          <Package size={20} className="text-amber-500" />
+          <div>
+            <p className="text-sm font-semibold text-stone-950">
+              {activeCount}/{maxProducts} produtos ativos
+            </p>
+            <div className="w-32 h-1.5 bg-stone-100 rounded-full mt-1 overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{ width: `${(activeCount / maxProducts) * 100}%`, backgroundColor: atLimit ? "#EF4444" : "#F59E0B" }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Aviso de limite */}
+      {atLimit && (
+        <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl">
+          <ShieldAlert size={20} className="text-red-600 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-medium text-red-900">Você atingiu o limite do plano {MOCK_PLAN.name}</p>
+            <p className="text-sm text-red-700">Desative um produto ou faça upgrade para ativar mais do catálogo.</p>
+          </div>
+          <button className="shrink-0 px-3 py-1.5 bg-stone-950 text-stone-50 rounded-lg text-sm font-medium hover:bg-stone-800 transition-colors">
+            Fazer upgrade
           </button>
-        )}
-      </div>
-
-      {/* Produtos Ativados */}
-      <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
-        <div className="p-6 border-b border-stone-200">
-          <h2 className="text-xl font-semibold text-stone-950">
-            Produtos Ativos ({tenantProducts.filter(p => p.enabled).length}/{tenantProducts.length})
-          </h2>
-        </div>
-
-        {tenantProducts.length === 0 ? (
-          <div className="p-12 text-center text-stone-500">
-            <p className="mb-4">Nenhum produto ativado ainda.</p>
-            <button
-              onClick={() => setShowModal(availableProducts[0])}
-              className="px-4 py-2 bg-amber-500 text-stone-950 rounded-xl font-semibold hover:bg-amber-400 transition-colors"
-            >
-              Adicionar primeiro produto
-            </button>
-          </div>
-        ) : (
-          <div className="divide-y divide-stone-200">
-            {tenantProducts.map((tp) => (
-              <div key={tp.id} className="p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div className="w-14 h-14 rounded-xl bg-stone-100 flex items-center justify-center flex-shrink-0">
-                    <span className="text-2xl font-bold text-stone-600">
-                      {tp.position}
-                    </span>
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="font-semibold text-stone-950 truncate">{tp.products.name}</h3>
-                    <p className="text-sm text-stone-500 capitalize">{tp.products.category}</p>
-                    <p className="text-xs text-stone-400 mt-1 truncate max-w-xs">{tp.products.description}</p>
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-1 sm:flex-none">
-                  {/* URL Input */}
-                  <div className="flex-1 flex items-center gap-2">
-                    <input
-                      type="url"
-                      value={tp.redirect_url}
-                      onChange={(e) => updateRedirectUrl(tp, e.target.value)}
-                      placeholder="https://seusite.com/produto"
-                      disabled={saving === tp.id}
-                      className="flex-1 px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-950 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all"
-                    />
-                    {tp.redirect_url && (
-                      <a
-                        href={tp.redirect_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 text-stone-400 hover:text-amber-500 transition-colors"
-                        title="Testar link"
-                      >
-                        <ExternalLink size={16} />
-                      </a>
-                    )}
-                  </div>
-
-                  {/* Toggle Ativo */}
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={tp.enabled}
-                      onChange={() => toggleProduct(tp)}
-                      disabled={saving === tp.id}
-                      className="sr-only peer"
-                    />
-                    <div className={cn(
-                      'w-11 h-6 rounded-full peer transition-colors',
-                      'peer-checked:bg-amber-500 peer-unchecked:bg-stone-300',
-                      'peer-focus:ring-2 peer-focus:ring-amber-500 peer-focus:ring-offset-2',
-                      'peer-disabled:opacity-50 peer-disabled:cursor-not-allowed'
-                    )}>
-                      <span className={cn(
-                        'absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform',
-                        'peer-checked:translate-x-5'
-                      )} />
-                    </div>
-                  </label>
-
-                  {/* Remover */}
-                  <button
-                    onClick={() => removeProduct(tp.id)}
-                    disabled={saving === tp.id}
-                    className="p-2 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                    title="Remover produto"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Produtos Disponíveis para Adicionar */}
-        {availableProducts.some(p => !getActivatedProductIds().includes(p.id)) && (
-          <div className="p-6 border-t border-stone-200">
-            <h3 className="text-lg font-semibold text-stone-950 mb-4">
-              Disponíveis no Catálogo ({availableProducts.filter(p => !getActivatedProductIds().includes(p.id)).length})
-            </h3>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {availableProducts
-                .filter(p => !getActivatedProductIds().includes(p.id))
-                .map((product) => (
-                  <button
-                    key={product.id}
-                    onClick={() => { setShowModal(product); setNewProductUrl(''); }}
-                    className="p-4 bg-stone-50 border border-stone-200 rounded-xl hover:border-amber-300 hover:bg-amber-50/50 transition-colors text-left"
-                  >
-                    <h4 className="font-medium text-stone-950">{product.name}</h4>
-                    <p className="text-xs text-stone-500 capitalize mt-1">{product.category}</p>
-                  </button>
-                ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Modal Adicionar Produto */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-display font-bold text-stone-950" style={{ fontFamily: 'var(--font-display)' }}>
-                Adicionar Produto
-              </h3>
-              <button onClick={() => setShowModal(null)} className="p-1 text-stone-400 hover:text-stone-600">
-                <X size={24} />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-medium text-stone-950">{showModal.name}</h4>
-                <p className="text-sm text-stone-500 capitalize">{showModal.category}</p>
-                <p className="text-sm text-stone-600 mt-1 line-clamp-2">{showModal.description}</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-stone-700 mb-2">
-                  Link de Venda (redirect_url) *
-                </label>
-                <input
-                  type="url"
-                  value={newProductUrl}
-                  onChange={(e) => setNewProductUrl(e.target.value)}
-                  placeholder="https://seusite.com/produto"
-                  className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-950 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all"
-                  required
-                />
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={() => setShowModal(null)}
-                  className="flex-1 py-2 px-4 bg-stone-100 text-stone-700 rounded-xl font-medium hover:bg-stone-200 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={() => addProduct(showModal)}
-                  disabled={saving === showModal.id || !newProductUrl}
-                  className="flex-1 py-2 px-4 bg-amber-500 text-stone-950 rounded-xl font-semibold hover:bg-amber-400 disabled:opacity-50 transition-colors"
-                >
-                  {saving === showModal.id ? <Loader2 className="w-5 h-5 mx-auto animate-spin" /> : 'Adicionar'}
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
       )}
+
+      {/* Busca */}
+      <div className="relative max-w-md">
+        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Buscar produto ou perfil..."
+          className="w-full pl-10 pr-4 py-2.5 bg-white border border-stone-200 rounded-xl text-sm text-stone-950 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+        />
+      </div>
+
+      {/* Lista de produtos */}
+      <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+        <div className="p-6 border-b border-stone-200">
+          <h2 className="text-xl font-semibold text-stone-950">Catálogo do Template</h2>
+          <p className="text-sm text-stone-500 mt-1">Produtos pré-configurados — defina o link de venda de cada ativo</p>
+        </div>
+
+        <div className="divide-y divide-stone-200">
+          {filteredProducts.map((p) => (
+            <div key={p.id} className={`p-5 flex flex-col lg:flex-row lg:items-center gap-4 transition-colors ${p.enabled ? "bg-amber-50/30" : ""}`}>
+              {/* Info */}
+              <div className="flex items-center gap-4 flex-1 min-w-0">
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${p.enabled ? "bg-amber-500/10 text-amber-600" : "bg-stone-100 text-stone-400"}`}>
+                  <Package size={22} />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-stone-950 truncate">{p.name}</h3>
+                    <span className="px-2 py-0.5 bg-stone-100 text-stone-500 rounded-full text-[10px] capitalize">{p.category.replace("_", " ")}</span>
+                  </div>
+                  <p className="text-xs text-stone-500 mt-1">{p.description}</p>
+                  <p className="text-xs text-stone-400 mt-0.5">
+                    Para <span className="text-amber-600 font-medium">{p.profileLabel}</span>
+                    {p.clicks > 0 && <span className="ml-2">• {p.clicks} cliques</span>}
+                  </p>
+                </div>
+              </div>
+
+              {/* Link de venda */}
+              <div className="flex items-center gap-2 flex-1 lg:flex-none lg:w-80">
+                <Link2 size={16} className="text-stone-400 shrink-0" />
+                <input
+                  type="url"
+                  value={p.redirect_url}
+                  onChange={e => setUrl(p.id, e.target.value)}
+                  onBlur={() => saveUrl(p.id)}
+                  placeholder="https://seusite.com/produto"
+                  disabled={!p.enabled}
+                  className={`flex-1 px-3 py-2 rounded-xl text-sm border focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all ${
+                    p.enabled
+                      ? "bg-stone-50 border-stone-200 text-stone-950 placeholder-stone-400"
+                      : "bg-stone-50 opacity-50 border-stone-200 text-stone-400 placeholder-stone-400 cursor-not-allowed"
+                  }`}
+                />
+                {savingUrl === p.id ? (
+                  <Loader2 size={16} className="text-amber-500 animate-spin" />
+                ) : p.redirect_url ? (
+                  <a href={p.redirect_url} target="_blank" rel="noopener noreferrer" className="p-2 text-stone-400 hover:text-amber-500 transition-colors">
+                    <ExternalLink size={16} />
+                  </a>
+                ) : null}
+              </div>
+
+              {/* Toggle ativo */}
+              <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                <input type="checkbox" checked={p.enabled} onChange={() => toggleEnabled(p.id)} className="sr-only peer" />
+                <div className={`w-11 h-6 rounded-full peer peer-focus:ring-2 peer-focus:ring-amber-500 peer-focus:ring-offset-2 transition-colors ${p.enabled ? "bg-amber-500" : "bg-stone-300"}`}>
+                  <span className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform ${p.enabled ? "translate-x-5" : ""}`} />
+                </div>
+                <span className="ml-3 text-sm text-stone-600 w-20">{p.enabled ? "Ativo" : "Inativo"}</span>
+              </label>
+            </div>
+          ))}
+
+          {filteredProducts.length === 0 && (
+            <div className="p-12 text-center text-stone-500">Nenhum produto encontrado para "{search}"</div>
+          )}
+        </div>
+      </div>
+
+      {/* Legenda */}
+      <div className="text-xs text-stone-500 bg-white rounded-xl border border-stone-200 p-4 flex items-center gap-2">
+        <CheckCircle2 size={14} className="text-amber-500 shrink-0" />
+        Os produtos ativados com link aparecem no resultado do quiz, na ordem do protocolo recomendado para cada perfil.
+      </div>
     </div>
   );
 }

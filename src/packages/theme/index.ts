@@ -118,14 +118,18 @@ export function createThemeFromTenant(tenant: {
   primary_color?: string;
   secondary_color?: string;
   accent_color?: string;
+  background_color?: string;
+  surface_color?: string;
   logo_url?: string;
   name?: string;
   headline?: string;
   subheadline?: string;
   cta_text?: string;
-  primary_font?: string;   // fonte sans (Inter, etc.)
-  display_font?: string;   // fonte display/serif (Playfair, etc.)
+  primary_font?: string;
+  display_font?: string;
   whatsapp?: string;
+  dark_background?: string;
+  dark_surface?: string;
 }): TenantTheme {
   // Mapa de fontes curado — o cliente escolhe de um conjunto, nunca digita livre
   const SERIF_FONTS: Record<string, string> = {
@@ -155,11 +159,21 @@ export function createThemeFromTenant(tenant: {
       primary: tenant.primary_color || DEFAULT_TENANT_THEME.colors.primary,
       secondary: tenant.secondary_color || DEFAULT_TENANT_THEME.colors.secondary,
       accent: tenant.accent_color || DEFAULT_TENANT_THEME.colors.accent,
+      background: tenant.background_color || DEFAULT_TENANT_THEME.colors.background,
+      surface: tenant.surface_color || DEFAULT_TENANT_THEME.colors.surface,
     },
     fonts: {
       sans: resolveSans(tenant.primary_font),
       serif: resolveDisplay(tenant.display_font),
       display: resolveDisplay(tenant.display_font),
+    },
+    dark: {
+      background: tenant.dark_background || DEFAULT_TENANT_THEME.dark!.background,
+      surface: tenant.dark_surface || DEFAULT_TENANT_THEME.dark!.surface,
+      text: DEFAULT_TENANT_THEME.dark!.text,
+      textMuted: DEFAULT_TENANT_THEME.dark!.textMuted,
+      border: DEFAULT_TENANT_THEME.dark!.border,
+      onPrimary: DEFAULT_TENANT_THEME.dark!.onPrimary,
     },
     logo: tenant.logo_url,
     name: tenant.name || DEFAULT_TENANT_THEME.name,

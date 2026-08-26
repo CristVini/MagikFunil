@@ -15,6 +15,7 @@ import { TenantLeads } from './pages/dashboard/TenantLeads';
 import { TenantAppearance } from './pages/dashboard/TenantAppearance';
 import { TenantSubscription } from './pages/dashboard/TenantSubscription';
 import { TenantPublication } from './pages/dashboard/TenantPublication';
+import { TenantConfiguration } from './pages/dashboard/TenantConfiguration';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AdminTenants } from './pages/admin/AdminTenants';
 import { AdminTemplates } from './pages/admin/AdminTemplates';
@@ -46,6 +47,7 @@ function App() {
         <Route path="/dashboard/aparencia" element={<TenantAppearance />} />
         <Route path="/dashboard/assinatura" element={<TenantSubscription />} />
         <Route path="/dashboard/publicacao" element={<TenantPublication />} />
+        <Route path="/dashboard/configuracao" element={<TenantConfiguration />} />
       </Route>
 
       {/* ===== ADMIN ===== */}

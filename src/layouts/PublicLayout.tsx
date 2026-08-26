@@ -13,7 +13,6 @@ export function PublicLayout() {
   const [redirectTo, setRedirectTo] = useState<string | null>(null);
   const { slug: paramSlug } = useParams<{ slug: string }>();
 
-  // Resolve o slug a partir do path param ou do subdomain
   const layoutSlug = paramSlug || getSubdomain(window ? window.location.hostname : '', import.meta.env.VITE_ROOT_DOMAIN || 'localhost') || undefined;
 
   useEffect(() => {
@@ -22,14 +21,28 @@ export function PublicLayout() {
     const slug = getSubdomain(hostname, rootDomain) || undefined;
 
     async function loadTenant() {
-      if (!slug) {
-        applyTheme(DEFAULT_TENANT_THEME);
-        setTheme(DEFAULT_TENANT_THEME);
-        setLoading(false);
-        return;
-      }
-
       try {
+        const previewRaw = window.sessionStorage.getItem('previewTheme');
+        const previewSlug = window.sessionStorage.getItem('previewSlug');
+        const isPreview = !!previewRaw && previewSlug === layoutSlug;
+
+        if (isPreview && previewRaw) {
+          const previewData = JSON.parse(previewRaw);
+          const previewTheme = createThemeFromTenant(previewData);
+          applyTheme(previewTheme);
+          setTheme(previewTheme);
+          setTenant(previewData);
+          setLoading(false);
+          return;
+        }
+
+        if (!slug) {
+          applyTheme(DEFAULT_TENANT_THEME);
+          setTheme(DEFAULT_TENANT_THEME);
+          setLoading(false);
+          return;
+        }
+
         const { data: tenantData } = await supabase
           .from('tenants')
           .select('*')
@@ -65,7 +78,7 @@ export function PublicLayout() {
     }
 
     loadTenant();
-  }, []);
+  }, [layoutSlug]);
 
   if (loading) {
     return (

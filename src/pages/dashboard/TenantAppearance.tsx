@@ -1,32 +1,66 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@lib/supabase';
 import { useAuth } from '@hooks/useAuth';
-import { Loader2, Palette, Image, Type, Save, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { Loader2, Palette, Image, Type, Save, Eye, ChevronLeft, ChevronRight, FolderOpen, Trash2, Undo2 } from 'lucide-react';
 import { applyTheme, createThemeFromTenant, DEFAULT_TENANT_THEME, AVAILABLE_FONTS } from '@packages/theme';
 import { cn } from '@lib/utils';
 
 export function TenantAppearance() {
   const { user } = useAuth();
+  const { slug } = useParams<{ slug: string }>();
+  const tenantId = user?.user_metadata?.tenant_id;
+  const STORAGE_KEY = tenantId ? `aparencia-draft-${tenantId}` : 'aparencia-draft';
   const [tenant, setTenant] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
-  const [formData, setFormData] = useState<Record<string, any>>({
-    name: '',
-    headline: '',
-    subheadline: '',
-    cta_text: '',
-    primary_color: '#16A34A',
-    secondary_color: '#EC4899',
-    accent_color: '#F59E0B',
-    primary_font: 'inter',
-    display_font: 'playfair',
-    logo_url: '',
-    whatsapp: '',
+
+  const loadDraft = (): Record<string, any> => {
+    if (typeof window === 'undefined') return {};
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const saveDraft = (data: Record<string, any>) => {
+    if (typeof window === 'undefined') return;
+    try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
+  };
+
+  const clearDraft = () => {
+    if (typeof window === 'undefined') return;
+    try { window.localStorage.removeItem(STORAGE_KEY); } catch {}
+  };
+
+  const [formData, setFormData] = useState<Record<string, any>>(() => {
+    const draft = loadDraft();
+    return {
+      name: '',
+      headline: draft.headline || '',
+      subheadline: draft.subheadline || '',
+      cta_text: draft.cta_text || '',
+      primary_color: draft.primary_color || '#16A34A',
+      secondary_color: draft.secondary_color || '#EC4899',
+      accent_color: draft.accent_color || '#F59E0B',
+      primary_font: draft.primary_font || 'inter',
+      display_font: draft.display_font || 'playfair',
+      logo_url: draft.logo_url || '',
+      whatsapp: draft.whatsapp || '',
+      background_color: draft.background_color || '#FAFAF9',
+      surface_color: draft.surface_color || '#FFFFFF',
+      dark_background: draft.dark_background || '#020617',
+      dark_surface: draft.dark_surface || '#0F172A',
+      text_color: draft.text_color || '#1C1917',
+      text_muted: draft.text_muted || '#78716C',
+      border_color: draft.border_color || '#E7E5E4',
+      content_background: draft.content_background || '#f5f5f4',
+    };
   });
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
-
-  const tenantId = user?.user_metadata?.tenant_id;
 
   useEffect(() => {
     loadTenant();
@@ -51,6 +85,14 @@ export function TenantAppearance() {
           display_font: data.display_font || 'playfair',
           logo_url: data.logo_url || '',
           whatsapp: data.whatsapp || '',
+          background_color: data.background_color || '#FAFAF9',
+          surface_color: data.surface_color || '#FFFFFF',
+          dark_background: data.dark_background || '#020617',
+          dark_surface: data.dark_surface || '#0F172A',
+          text_color: data.text_color || '#1C1917',
+          text_muted: data.text_muted || '#78716C',
+          border_color: data.border_color || '#E7E5E4',
+          content_background: data.content_background || '#f5f5f4',
         });
         if (data.logo_url) setLogoPreview(data.logo_url);
       }
@@ -63,7 +105,6 @@ export function TenantAppearance() {
 
   const handleColorChange = (key: string, value: string) => {
     setFormData(prev => ({ ...prev, [key]: value }));
-    // Preview em tempo real
     const previewTheme = createThemeFromTenant({ ...formData, [key]: value });
     applyTheme(previewTheme);
   };
@@ -91,6 +132,7 @@ export function TenantAppearance() {
 
   const saveChanges = async () => {
     if (!tenantId) return;
+    saveDraft(formData);
     setSaving(true);
     try {
       const { error } = await supabase.from('tenants').update({
@@ -105,11 +147,18 @@ export function TenantAppearance() {
         display_font: formData.display_font,
         logo_url: formData.logo_url,
         whatsapp: formData.whatsapp,
+        background_color: formData.background_color,
+        surface_color: formData.surface_color,
+        dark_background: formData.dark_background,
+        dark_surface: formData.dark_surface,
+        text_color: formData.text_color,
+        text_muted: formData.text_muted,
+        border_color: formData.border_color,
+        content_background: formData.content_background,
       }).eq('id', tenantId);
 
       if (error) throw error;
 
-      // Aplicar tema salvo
       const savedTheme = createThemeFromTenant(formData);
       applyTheme(savedTheme);
 
@@ -124,7 +173,10 @@ export function TenantAppearance() {
 
   const exitPreview = () => {
     setPreviewMode(false);
-    // Restaurar tema real do tenant
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem('previewTheme');
+      window.sessionStorage.removeItem('previewSlug');
+    }
     if (tenant) {
       const realTheme = createThemeFromTenant(tenant);
       applyTheme(realTheme);
@@ -171,19 +223,6 @@ export function TenantAppearance() {
           </h1>
           <p className="text-stone-500 mt-1">Personalize a identidade visual do seu funil público</p>
         </div>
-        <div className="flex gap-3">
-          <button
-            onClick={() => {
-              const previewTheme = createThemeFromTenant(formData);
-              applyTheme(previewTheme);
-              setPreviewMode(true);
-            }}
-            className="px-4 py-2 bg-stone-950 text-stone-50 rounded-xl font-medium hover:bg-stone-800 transition-colors flex items-center gap-2"
-          >
-            <Eye size={18} />
-            Ver Preview
-          </button>
-        </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
@@ -199,6 +238,14 @@ export function TenantAppearance() {
                 { key: 'primary_color', label: 'Cor Primária', desc: 'Botões principais, CTAs, destaques' },
                 { key: 'secondary_color', label: 'Cor Secundária', desc: 'Elementos de apoio, badges' },
                 { key: 'accent_color', label: 'Cor de Acento', desc: 'Detalhes, hover, indicadores' },
+                { key: 'background_color', label: 'Background Claro', desc: 'Fundo principal do funil (modo claro)' },
+                { key: 'surface_color', label: 'Superfície Clara', desc: 'Cards, modais, áreas de conteúdo (modo claro)' },
+                { key: 'dark_background', label: 'Background do Funil', desc: 'Fundo principal das telas públicas (Landing, Quiz, Resultado)' },
+                { key: 'dark_surface', label: 'Superfície', desc: 'Cards e áreas de conteúdo (modo escuro)' },
+                { key: 'text_color', label: 'Cor do Texto', desc: 'Texto principal em modo claro' },
+                { key: 'text_muted', label: 'Texto Secundário', desc: 'Textos de apoio e legendas' },
+                { key: 'border_color', label: 'Bordas', desc: 'Contorno de cards e inputs' },
+                { key: 'content_background', label: 'Background do Conteúdo', desc: 'Fundo das seções internas do funil' },
               ].map(({ key, label, desc }) => (
                 <div key={key} className="space-y-2">
                   <label className="block text-sm font-medium text-stone-700">
@@ -224,80 +271,10 @@ export function TenantAppearance() {
               ))}
             </div>
           </div>
-
-          {/* Tipografia */}
-          <div className="bg-white rounded-2xl border border-stone-200 p-6">
-            <h2 className="text-lg font-semibold text-stone-950 mb-6 flex items-center gap-2">
-              <Type size={20} className="text-amber-500" />
-              Tipografia
-            </h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-stone-700 mb-2">Fonte de Destaque (Títulos, serif)</label>
-                <select
-                  value={formData.display_font}
-                  onChange={e => { handleInputChange('display_font', e.target.value); handleColorChange('display_font', e.target.value); }}
-                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                >
-                  {AVAILABLE_FONTS.display.map(f => (
-                    <option key={f.key} value={f.key}>{f.label}</option>
-                  ))}
-                </select>
-                <p className="text-xs text-stone-500 mt-1">Usada nos títulos grandes, nome do perfil e headline</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-stone-700 mb-2">Fonte de Texto (Corpo, sem serifa)</label>
-                <select
-                  value={formData.primary_font}
-                  onChange={e => { handleInputChange('primary_font', e.target.value); handleColorChange('primary_font', e.target.value); }}
-                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                >
-                  {AVAILABLE_FONTS.sans.map(f => (
-                    <option key={f.key} value={f.key}>{f.label}</option>
-                  ))}
-                </select>
-                <p className="text-xs text-stone-500 mt-1">Usada em parágrafos, botões e textos de apoio</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Logo */}
-          <div className="bg-white rounded-2xl border border-stone-200 p-6">
-            <h2 className="text-lg font-semibold text-stone-950 mb-6 flex items-center gap-2">
-              <Image size={20} className="text-amber-500" />
-              Logo da Marca
-            </h2>
-            <div className="space-y-4">
-              <div className="aspect-video bg-stone-100 rounded-xl border border-stone-200 flex items-center justify-center overflow-hidden">
-                {logoPreview ? (
-                  <img src={logoPreview} alt="Logo preview" className="max-w-full max-h-32 object-contain" />
-                ) : (
-                  <div className="text-center text-stone-500 py-8">
-                    <Image size={32} className="mx-auto mb-2 text-stone-300" />
-                    <p>Nenhuma logo enviada</p>
-                  </div>
-                )}
-              </div>
-              <label className="cursor-pointer">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleLogoUpload}
-                  className="sr-only"
-                  id="logo-upload"
-                />
-                <button className="w-full px-4 py-2 bg-stone-950 text-stone-50 rounded-xl font-medium hover:bg-stone-800 transition-colors">
-                  {logoPreview ? 'Alterar Logo' : 'Enviar Logo'}
-                </button>
-                <p className="text-xs text-stone-500 text-center">PNG/SVG/JPG • Máx. 2MB • Proporção livre</p>
-              </label>
-            </div>
-          </div>
         </div>
 
-        {/* Coluna 2: Textos + Preview */}
+        {/* Coluna 2 */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Textos */}
           <div className="bg-white rounded-2xl border border-stone-200 p-6">
             <h2 className="text-lg font-semibold text-stone-950 mb-6 flex items-center gap-2">
               <Type size={20} className="text-amber-500" />
@@ -370,8 +347,10 @@ export function TenantAppearance() {
               </h2>
               <button
                 onClick={() => {
-                  const previewTheme = createThemeFromTenant(formData);
-                  applyTheme(previewTheme);
+                  if (typeof window !== 'undefined' && tenant?.slug) {
+                    window.sessionStorage.setItem('previewTheme', JSON.stringify(formData));
+                    window.sessionStorage.setItem('previewSlug', tenant.slug);
+                  }
                   setPreviewMode(true);
                 }}
                 className="px-3 py-1.5 bg-amber-500 text-stone-950 rounded-lg text-sm font-medium hover:bg-amber-400 transition-colors"
@@ -379,19 +358,19 @@ export function TenantAppearance() {
                 Ver Completo
               </button>
             </div>
-            <div className="aspect-video bg-gradient-to-br from-stone-50 to-stone-100 rounded-2xl border border-stone-200 p-8 relative overflow-hidden">
+            <div className="aspect-video rounded-2xl border relative overflow-hidden" style={{ backgroundColor: formData.background_color || '#FAFAF9', borderColor: formData.surface_color || '#FFFFFF' }}>
               <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-5" />
-              <div className="relative z-10 max-w-xl mx-auto text-center">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-600 text-sm font-medium mb-6">
+              <div className="relative z-10 max-w-xl mx-auto text-center p-8">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6" style={{ backgroundColor: `${formData.accent_color}20`, color: formData.accent_color || '#F59E0B' }}>
                   <span>Baseado em ciência • Personalizado</span>
                 </div>
-                <h1 className="text-3xl md:text-5xl font-display font-bold text-stone-950 leading-tight mb-4" style={{ fontFamily: 'var(--font-display)', color: formData.primary_color }}>
+                <h1 className="text-3xl md:text-5xl font-display font-bold leading-tight mb-4" style={{ fontFamily: 'var(--font-display)', color: formData.primary_color || '#16A34A' }}>
                   {formData.headline || DEFAULT_TENANT_THEME.headline}
                 </h1>
-                <p className="text-lg md:text-xl text-stone-600 mb-8 max-w-xl mx-auto">
+                <p className="text-lg md:text-xl mb-8 max-w-xl mx-auto" style={{ color: formData.accent_color || '#78716C' }}>
                   {formData.subheadline || DEFAULT_TENANT_THEME.subheadline}
                 </p>
-                <button className="inline-flex items-center gap-2 px-8 py-4 rounded-full text-lg font-semibold uppercase tracking-wider shadow-lg" style={{ backgroundColor: formData.primary_color, color: '#fff' }}>
+                <button className="inline-flex items-center gap-2 px-8 py-4 rounded-full text-lg font-semibold uppercase tracking-wider shadow-lg" style={{ backgroundColor: formData.primary_color || '#16A34A', color: '#fff' }}>
                   {formData.cta_text || DEFAULT_TENANT_THEME.ctaText}
                 </button>
               </div>
@@ -403,9 +382,16 @@ export function TenantAppearance() {
       {/* Actions */}
       <div className="flex justify-end gap-3">
         <button
-          onClick={() => loadTenant()}
-          className="px-6 py-3 bg-stone-100 text-stone-700 rounded-xl font-medium hover:bg-stone-200 transition-colors"
+          onClick={() => {
+            const lastSaved = loadDraft();
+            const restored = { ...formData, ...lastSaved };
+            setFormData(restored);
+            const theme = createThemeFromTenant(restored);
+            applyTheme(theme);
+          }}
+          className="px-6 py-3 bg-stone-100 text-stone-700 rounded-xl font-medium hover:bg-stone-200 transition-colors flex items-center gap-2"
         >
+          <Undo2 size={18} />
           Descartar alterações
         </button>
         <button
@@ -413,7 +399,7 @@ export function TenantAppearance() {
           disabled={saving}
           className="px-6 py-3 bg-amber-500 text-stone-950 rounded-xl font-semibold hover:bg-amber-400 disabled:opacity-50 transition-colors flex items-center gap-2"
         >
-          {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Salvar alterações'}
+          {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Save size={18} /> Salvar alterações</>}
         </button>
       </div>
     </div>

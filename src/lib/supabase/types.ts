@@ -14,6 +14,10 @@ export interface Database {
           primary_color: string | null;
           secondary_color: string | null;
           accent_color: string | null;
+          background_color: string | null;
+          surface_color: string | null;
+          dark_background: string | null;
+          dark_surface: string | null;
           logo_url: string | null;
           headline: string | null;
           subheadline: string | null;
