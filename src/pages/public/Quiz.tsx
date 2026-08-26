@@ -5,33 +5,29 @@ import { useEffect, useState } from "react";
 import { supabase } from "@lib/supabase";
 import { useQuiz } from "@hooks/useQuiz";
 import { ArrowRight, ChevronLeft, Loader2 } from "lucide-react";
-import { Fireflies } from "../public/Landing";
 
 export function Quiz() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const { questions, currentStep, scores, answer, next, previous, finish, loading, fetchQuiz } = useQuiz(slug!);
+  const { questions, currentStep, scores, answer, next, previous, finish, loading, fetchQuiz } = useQuiz();
   const [tenant, setTenant] = useState<any>(null);
   const [theme, setTheme] = useState<any>(null);
   const question = questions[currentStep];
 
   useEffect(() => {
     // Load tenant for theme
-    supabase.from("tenants").select("*").eq("slug", slug).single().then(({ data }) => {
+    supabase.from("tenants").select("*").eq("slug", slug).single().then(({ data }: { data: any }) => {
       if (data) setTenant(data);
     });
   }, [slug]);
 
   useEffect(() => {
-    fetchQuiz(slug!).then(() => {
-      // Theme will be applied by PublicLayout, but we can ensure it's set
-    });
+    fetchQuiz(slug!);
   }, [slug]);
 
   if (loading || !question) {
     return (
       <div className="min-h-screen bg-stone-50 flex items-center justify-center" style={{ fontFamily: "var(--font-sans)" }}>
-        <Fireflies />
         <div className="absolute inset-0 flex items-center justify-center z-10">
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="w-10 h-10 text-amber-500 animate-spin" />
@@ -48,6 +44,8 @@ export function Quiz() {
     answer(profileIds);
     if (currentStep === questions.length - 1) {
       finish();
+      // Navega para o resultado após responder a última pergunta
+      setTimeout(() => navigate(`/f/${slug}/resultado`), 400);
     } else {
       next();
     }
@@ -55,8 +53,6 @@ export function Quiz() {
 
   return (
     <div className="min-h-screen bg-stone-50" style={{ fontFamily: "var(--font-sans)" }}>
-      {/* Fireflies Background */}
-      <Fireflies className="fixed inset-0 -z-10" />
 
       {/* Progress Bar - Fixed at top */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-stone-50/95 backdrop-blur-sm border-b border-stone-200 px-6 py-4">

@@ -69,7 +69,7 @@ export function TenantProducts() {
         setAvailableProducts(products || []);
       }
 
-      setTenantProducts((tp || []).map(t => ({ ...t, products: t.products as Product })));
+      setTenantProducts((tp || []).map((t: any) => ({ ...t, products: t.products as Product })));
     } catch (err) {
       console.error('Erro ao carregar produtos:', err);
     } finally {

@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@lib/supabase';
-import { useAuth } from '@hooks/useAuth';
-import { Search, Filter, Download, Loader2, MoreVertical, Edit, MessageSquare, CheckCircle, XCircle, Clock, DollarSign } from 'lucide-react';
-import { formatCurrency, formatNumber } from '@lib/utils';
-import { cn } from '@lib/utils';
+import { useState, useEffect } from "react";
+import { supabase } from "@lib/supabase";
+import { useAuth } from "@hooks/useAuth";
+import { Search, Filter, Download, Loader2, MoreVertical, Edit, MessageSquare, CheckCircle, XCircle, Clock, DollarSign } from "lucide-react";
+import { formatCurrency, formatNumber } from "@lib/utils";
+import { cn } from "@lib/utils";
 
-type LeadStatus = 'new' | 'contacted' | 'won' | 'lost';
+type LeadStatus = "new" | "contacted" | "won" | "lost";
 
 interface Lead {
   id: string;
@@ -20,20 +20,20 @@ interface Lead {
 }
 
 const STATUS_CONFIG: Record<LeadStatus, { label: string; color: string; icon: any }> = {
-  new: { label: 'Novo', color: 'bg-blue-500/10 text-blue-600', icon: Clock },
-  contacted: { label: 'Em contato', color: 'bg-amber-500/10 text-amber-600', icon: MessageSquare },
-  won: { label: 'Convertido', color: 'bg-green-500/10 text-green-600', icon: CheckCircle },
-  lost: { label: 'Perdido', color: 'bg-red-500/10 text-red-600', icon: XCircle },
+  new: { label: "Novo", color: "bg-blue-500/10 text-blue-600", icon: Clock },
+  contacted: { label: "Em contato", color: "bg-amber-500/10 text-amber-600", icon: MessageSquare },
+  won: { label: "Convertido", color: "bg-green-500/10 text-green-600", icon: CheckCircle },
+  lost: { label: "Perdido", color: "bg-red-500/10 text-red-600", icon: XCircle },
 };
 
 export function TenantLeads() {
   const { user } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<LeadStatus | 'all'>('all');
-  const [sortBy, setSortBy] = useState<'created_at' | 'name' | 'status'>('created_at');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<LeadStatus | "all">("all");
+  const [sortBy, setSortBy] = useState<"created_at" | "name" | "status">("created_at");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [expandedLead, setExpandedLead] = useState<string | null>(null);
 
   const tenantId = user?.user_metadata?.tenant_id;
@@ -47,13 +47,13 @@ export function TenantLeads() {
     setLoading(true);
     try {
       const { data } = await supabase
-        .from('leads')
-        .select('*')
-        .eq('tenant_id', tenantId)
-        .order('created_at', { ascending: false });
+        .from("leads")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .order("created_at", { ascending: false });
       setLeads(data || []);
     } catch (err) {
-      console.error('Erro ao carregar leads:', err);
+      console.error("Erro ao carregar leads:", err);
     } finally {
       setLoading(false);
     }
@@ -61,16 +61,16 @@ export function TenantLeads() {
 
   const updateStatus = async (leadId: string, newStatus: LeadStatus) => {
     try {
-      await supabase.from('leads').update({ status: newStatus }).eq('id', leadId);
+      await supabase.from("leads").update({ status: newStatus }).eq("id", leadId);
       setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status: newStatus } : l));
     } catch (err) {
-      console.error('Erro ao atualizar status:', err);
+      console.error("Erro ao atualizar status:", err);
     }
   };
 
   const filteredLeads = leads
     .filter(l => {
-      if (statusFilter !== 'all' && l.status !== statusFilter) return false;
+      if (statusFilter !== "all" && l.status !== statusFilter) return false;
       if (search) {
         const s = search.toLowerCase();
         return (
@@ -82,10 +82,10 @@ export function TenantLeads() {
       return true;
     })
     .sort((a, b) => {
-      const aVal = a[sortBy] || '';
-      const bVal = b[sortBy] || '';
+      const aVal = a[sortBy] || "";
+      const bVal = b[sortBy] || "";
       const cmp = aVal > bVal ? 1 : -1;
-      return sortOrder === 'asc' ? cmp : -cmp;
+      return sortOrder === "asc" ? cmp : -cmp;
     });
 
   const statusCounts = leads.reduce((acc, l) => {
@@ -102,11 +102,11 @@ export function TenantLeads() {
   }
 
   return (
-    <div className="space-y-6" style={{ fontFamily: 'var(--font-sans)' }}>
+    <div className="space-y-6" style={{ fontFamily: "var(--font-sans)" }}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-display font-bold text-stone-950" style={{ fontFamily: 'var(--font-display)' }}>
+          <h1 className="text-3xl font-display font-bold text-stone-950" style={{ fontFamily: "var(--font-display)" }}>
             Leads
           </h1>
           <p className="text-stone-500 mt-1">Gerencie e acompanhe seus contatos</p>
@@ -121,7 +121,7 @@ export function TenantLeads() {
 
       {/* Stats Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        {(['new', 'contacted', 'won', 'lost'] as LeadStatus).map(status => (
+        {(Object.keys(STATUS_CONFIG) as LeadStatus[]).map(status => (
           <div key={status} className="bg-white rounded-xl border border-stone-200 p-4 text-center">
             <p className="text-2xl font-bold text-stone-950">{statusCounts[status] || 0}</p>
             <p className="text-xs text-stone-500 capitalize">{STATUS_CONFIG[status].label}</p>
@@ -131,7 +131,7 @@ export function TenantLeads() {
           <p className="text-2xl font-bold text-stone-950">{leads.length}</p>
           <p className="text-xs text-stone-500">Total</p>
         </div>
-      }</div>
+      </div>
 
       {/* Filters */}
       <div className="bg-white rounded-2xl border border-stone-200 p-4">
@@ -148,7 +148,7 @@ export function TenantLeads() {
           </div>
           <select
             value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value as LeadStatus | 'all')}
+            onChange={e => setStatusFilter(e.target.value as LeadStatus | "all")}
             className="px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-500"
           >
             <option value="all">Todos os status</option>
@@ -160,7 +160,7 @@ export function TenantLeads() {
           <select
             value={`${sortBy}:${sortOrder}`}
             onChange={e => {
-              const [sb, so] = e.target.value.split(':');
+              const [sb, so] = e.target.value.split(":");
               setSortBy(sb as any);
               setSortOrder(so as any);
             }}
@@ -200,8 +200,8 @@ export function TenantLeads() {
                   <tr key={lead.id} className="hover:bg-stone-50 transition-colors">
                     <td className="px-6 py-4">
                       <div>
-                        <p className="font-medium text-stone-950">{lead.name || 'Não informado'}</p>
-                        <p className="text-sm text-stone-500">{lead.phone || 'Sem telefone'}</p>
+                        <p className="font-medium text-stone-950">{lead.name || "Não informado"}</p>
+                        <p className="text-sm text-stone-500">{lead.phone || "Sem telefone"}</p>
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -217,26 +217,26 @@ export function TenantLeads() {
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <p className="text-sm text-stone-500 truncate max-w-xs">{lead.source_url || 'Direto'}</p>
+                      <p className="text-sm text-stone-500 truncate max-w-xs">{lead.source_url || "Direto"}</p>
                     </td>
                     <td className="px-6 py-4">
                       <select
                         value={lead.status}
                         onChange={e => updateStatus(lead.id, e.target.value as LeadStatus)}
                         className={cn(
-                          'px-3 py-1.5 rounded-full text-xs font-semibold border',
+                          "px-3 py-1.5 rounded-full text-xs font-semibold border",
                           STATUS_CONFIG[lead.status].color,
-                          'border-transparent'
+                          "border-transparent"
                         )}
                       >
-                        {(['new', 'contacted', 'won', 'lost'] as LeadStatus).map(s => (
+                        {(Object.keys(STATUS_CONFIG) as LeadStatus[]).map(s => (
                           <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>
                         ))}
                       </select>
                     </td>
                     <td className="px-6 py-4 text-sm text-stone-500">
-                      {new Date(lead.created_at).toLocaleDateString('pt-BR', {
-                        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                      {new Date(lead.created_at).toLocaleDateString("pt-BR", {
+                        day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
                       })}
                     </td>
                     <td className="px-6 py-4 text-right">

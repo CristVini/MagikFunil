@@ -300,7 +300,6 @@ export function TenantSubscription() {
                       plan.slug === 'advanced' ? 'bg-purple-500 text-white hover:bg-purple-600' :
                       'bg-stone-950 text-stone-50 hover:bg-stone-800'
                     }`}
-                    disabled={upgrading === plan.id}
                   >
                     {upgrading === plan.id ? <LoaderIcon className="w-5 h-5 mx-auto animate-spin" /> : `Assinar ${plan.name}`}
                   </button>

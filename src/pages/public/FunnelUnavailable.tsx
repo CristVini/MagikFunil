@@ -3,8 +3,7 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@lib/supabase";
-import { Lock, AlertCircle, Clock, ExternalLink, RefreshCw, ArrowRight, Building2, CreditCard, Shield, Crown } from "lucide-react";
-import { Fireflies } from "../public/Landing";
+import { Lock, AlertCircle, Clock, RefreshCw, ArrowRight, Building2, CreditCard, Shield, Crown } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export function FunnelUnavailable() {
@@ -54,7 +53,6 @@ export function FunnelUnavailable() {
   if (loading) {
     return (
       <div className="min-h-screen bg-stone-50 flex items-center justify-center" style={{ fontFamily: "var(--font-sans)" }}>
-        <Fireflies />
         <div className="absolute inset-0 flex items-center justify-center z-10">
           <div className="flex flex-col items-center gap-4">
             <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
@@ -111,11 +109,9 @@ export function FunnelUnavailable() {
   }
 
   const rootDomain = import.meta.env.VITE_ROOT_DOMAIN || "seudominio.com";
-  const publicUrl = tenant ? `https://${tenant.slug}.${rootDomain}` : null;
 
   return (
     <div className="min-h-screen bg-stone-50" style={{ fontFamily: "var(--font-sans)" }}>
-      <Fireflies className="fixed inset-0 -z-10" />
 
       <div className="min-h-screen flex items-center justify-center px-6 py-12" style={{ fontFamily: "var(--font-sans)" }}>
         <div className="max-w-md w-full">

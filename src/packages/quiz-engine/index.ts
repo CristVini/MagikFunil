@@ -14,6 +14,7 @@ export interface QuizQuestion {
 
 export interface Profile {
   id: string;
+  template_id?: string;
   name: string;
   archetype: string;
   description: string;

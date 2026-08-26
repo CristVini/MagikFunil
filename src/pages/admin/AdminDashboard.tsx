@@ -68,7 +68,7 @@ export function AdminDashboard() {
         `)
         .eq('status', 'active');
 
-      const revenue = (subs || []).reduce((sum, s) => sum + (s.plans?.price_monthly_cents || 0), 0);
+      const revenue = (subs || []).reduce((sum: number, s: any) => sum + (s.plans?.price_monthly_cents || 0), 0);
 
       setStats({
         totalTenants: total || 0,

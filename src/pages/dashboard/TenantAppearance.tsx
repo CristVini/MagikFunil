@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@lib/supabase';
 import { useAuth } from '@hooks/useAuth';
 import { Loader2, Palette, Image, Type, Save, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
-import { applyTheme, createThemeFromTenant, DEFAULT_TENANT_THEME } from '@packages/theme';
+import { applyTheme, createThemeFromTenant, DEFAULT_TENANT_THEME, AVAILABLE_FONTS } from '@packages/theme';
 import { cn } from '@lib/utils';
 
 export function TenantAppearance() {
@@ -11,7 +11,7 @@ export function TenantAppearance() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<Record<string, any>>({
     name: '',
     headline: '',
     subheadline: '',
@@ -19,6 +19,8 @@ export function TenantAppearance() {
     primary_color: '#16A34A',
     secondary_color: '#EC4899',
     accent_color: '#F59E0B',
+    primary_font: 'inter',
+    display_font: 'playfair',
     logo_url: '',
     whatsapp: '',
   });
@@ -45,6 +47,8 @@ export function TenantAppearance() {
           primary_color: data.primary_color || DEFAULT_TENANT_THEME.colors.primary,
           secondary_color: data.secondary_color || DEFAULT_TENANT_THEME.colors.secondary,
           accent_color: data.accent_color || DEFAULT_TENANT_THEME.colors.accent,
+          primary_font: data.primary_font || 'inter',
+          display_font: data.display_font || 'playfair',
           logo_url: data.logo_url || '',
           whatsapp: data.whatsapp || '',
         });
@@ -97,6 +101,8 @@ export function TenantAppearance() {
         primary_color: formData.primary_color,
         secondary_color: formData.secondary_color,
         accent_color: formData.accent_color,
+        primary_font: formData.primary_font,
+        display_font: formData.display_font,
         logo_url: formData.logo_url,
         whatsapp: formData.whatsapp,
       }).eq('id', tenantId);
@@ -216,6 +222,42 @@ export function TenantAppearance() {
                   <p className="text-xs text-stone-500">{desc}</p>
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* Tipografia */}
+          <div className="bg-white rounded-2xl border border-stone-200 p-6">
+            <h2 className="text-lg font-semibold text-stone-950 mb-6 flex items-center gap-2">
+              <Type size={20} className="text-amber-500" />
+              Tipografia
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-2">Fonte de Destaque (Títulos, serif)</label>
+                <select
+                  value={formData.display_font}
+                  onChange={e => { handleInputChange('display_font', e.target.value); handleColorChange('display_font', e.target.value); }}
+                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                >
+                  {AVAILABLE_FONTS.display.map(f => (
+                    <option key={f.key} value={f.key}>{f.label}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-stone-500 mt-1">Usada nos títulos grandes, nome do perfil e headline</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-2">Fonte de Texto (Corpo, sem serifa)</label>
+                <select
+                  value={formData.primary_font}
+                  onChange={e => { handleInputChange('primary_font', e.target.value); handleColorChange('primary_font', e.target.value); }}
+                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                >
+                  {AVAILABLE_FONTS.sans.map(f => (
+                    <option key={f.key} value={f.key}>{f.label}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-stone-500 mt-1">Usada em parágrafos, botões e textos de apoio</p>
+              </div>
             </div>
           </div>
 
@@ -350,7 +392,7 @@ export function TenantAppearance() {
                   {formData.subheadline || DEFAULT_TENANT_THEME.subheadline}
                 </p>
                 <button className="inline-flex items-center gap-2 px-8 py-4 rounded-full text-lg font-semibold uppercase tracking-wider shadow-lg" style={{ backgroundColor: formData.primary_color, color: '#fff' }}>
-                  {formData.ctaText || DEFAULT_TENANT_THEME.ctaText}
+                  {formData.cta_text || DEFAULT_TENANT_THEME.ctaText}
                 </button>
               </div>
             </div>

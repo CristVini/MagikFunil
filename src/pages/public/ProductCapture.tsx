@@ -5,25 +5,22 @@ import { useEffect, useState } from "react";
 import { supabase } from "@lib/supabase";
 import { useQuiz } from "@hooks/useQuiz";
 import { ArrowRight, ShoppingBag, CheckCircle, Sparkles, Loader2, ExternalLink } from "lucide-react";
-import { Fireflies } from "../public/Landing";
 
 export function ProductCapture() {
   const { slug } = useParams<{ slug: string }>();
-  const { getResult, fetchQuiz } = useQuiz(slug!);
+  const { fetchQuiz } = useQuiz();
   const [tenant, setTenant] = useState<any>(null);
   const [product, setProduct] = useState<any>(null);
   const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchQuiz(slug!).then(() => {
-      const result = useQuiz.getState().getResult();
-      const winner = result.winner;
-      
-      // Buscar tenant
-      supabase.from("tenants").select("*").eq("slug", slug).single().then(({ data }) => {
-        if (data) setTenant(data);
-      });
+    fetchQuiz(slug!);
+  }, [slug]);
+
+  useEffect(() => {
+    supabase.from("tenants").select("*").eq("slug", slug).single().then(({ data }: { data: any }) => {
+      if (data) setTenant(data);
     });
   }, [slug]);
 
@@ -32,14 +29,13 @@ export function ProductCapture() {
     const params = new URLSearchParams(window.location.search);
     const productId = params.get("product_id");
     const productName = params.get("product_name");
-    
+
     if (productId) {
-      supabase.from("products").select("*").eq("id", productId).single().then(({ data }) => {
+      supabase.from("products").select("*").eq("id", productId).single().then(({ data }: { data: any }) => {
         if (data) setProduct(data);
       });
     } else if (productName) {
-      // Fallback: buscar por nome
-      supabase.from("products").select("*").ilike("name", `%${productName}%`).single().then(({ data }) => {
+      supabase.from("products").select("*").ilike("name", `%${productName}%`).single().then(({ data }: { data: any }) => {
         if (data) setProduct(data);
       });
     }
@@ -47,24 +43,20 @@ export function ProductCapture() {
 
   const handleRedirect = async () => {
     if (!tenant || !product) return;
-    
+
     setRedirecting(true);
-    
+
     try {
-      // Registrar evento de clique no produto
-      const { getResult } = useQuiz.getState();
-      const result = getResult();
+      const result = useQuiz.getState().getResult();
       const winnerProfile = result.winner?.id;
-      
-      // Buscar tenant_id
+
       const { data: tenantData } = await supabase
         .from("tenants")
         .select("id")
         .eq("slug", slug)
         .single();
-      
+
       if (tenantData) {
-        // Registrar evento product_click
         await supabase.from("events").insert({
           tenant_id: tenantData.id,
           kind: "product_click",
@@ -72,7 +64,7 @@ export function ProductCapture() {
           profile_id: null,
           source_url: window.location.href,
           referrer: document.referrer,
-          payload: { 
+          payload: {
             product_name: product.name,
             product_category: product.category,
             redirect_url: product.redirect_url,
@@ -80,7 +72,6 @@ export function ProductCapture() {
         });
       }
 
-      // Redirecionar para URL do produto
       if (product.redirect_url) {
         window.location.href = product.redirect_url;
       } else {
@@ -97,9 +88,11 @@ export function ProductCapture() {
   if (!tenant) {
     return (
       <div className="min-h-screen bg-stone-50 flex items-center justify-center" style={{ fontFamily: "var(--font-sans)" }}>
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-stone-500">Carregando...</p>
+        <div className="absolute inset-0 flex items-center justify-center z-10">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
+            <p className="text-stone-500">Carregando...</p>
+          </div>
         </div>
       </div>
     );
@@ -108,7 +101,6 @@ export function ProductCapture() {
   if (!product) {
     return (
       <div className="min-h-screen bg-stone-50 flex items-center justify-center" style={{ fontFamily: "var(--font-sans)" }}>
-        <Fireflies />
         <div className="absolute inset-0 flex items-center justify-center z-10 text-center px-6">
           <div className="max-w-md">
             <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto mb-6">
@@ -129,19 +121,13 @@ export function ProductCapture() {
     );
   }
 
-  const result = useQuiz.getState().getResult();
-  const winner = result.winner;
+  const winner = useQuiz.getState().getResult().winner;
 
   return (
     <div className="min-h-screen bg-stone-50" style={{ fontFamily: "var(--font-sans)" }}>
-      <div className="fixed inset-0 -z-10">
-        <Fireflies />
-      </div>
-
       <div className="min-h-screen flex items-center justify-center px-6 py-12" style={{ fontFamily: "var(--font-sans)" }}>
         <div className="max-w-md w-full">
           <div className="bg-white rounded-3xl border border-stone-200 p-8 shadow-[0_0_100px_rgba(0,0,0,0.06)] text-center animate-in fade-in zoom-in-98 duration-700">
-            {/* Success Animation */}
             <div className="mb-8">
               <div className="w-20 h-20 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-6 animate-in zoom-in-95 duration-500">
                 <CheckCircle size={32} className="text-green-500" />
@@ -163,7 +149,6 @@ export function ProductCapture() {
               </p>
             </div>
 
-            {/* Product Info Card */}
             <div className="bg-stone-50 rounded-2xl p-6 mb-8 text-left">
               <div className="flex items-center gap-4 mb-4">
                 <div className="w-16 h-16 rounded-2xl bg-stone-100 flex items-center justify-center">
@@ -179,7 +164,7 @@ export function ProductCapture() {
                 <div className="mb-4">
                   <p className="text-xs text-stone-500 mb-2">Ativos principais:</p>
                   <div className="flex flex-wrap gap-1">
-                    {Object.entries(product.key_actives).slice(0, 5).map(([k, v]) => (
+                    {Object.entries(product.key_actives || {}).slice(0, 5).map(([k, v]: [string, any]) => (
                       <span key={k} className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded text-[9px] font-medium">
                         {k}: {v}
                       </span>
@@ -193,17 +178,21 @@ export function ProductCapture() {
               </p>
             </div>
 
-            {/* Redirect Button */}
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-xl text-sm">{error}</div>
+            )}
+
             <button
-              onClick={async () => {
-                // O redirecionamento acontece via handleRedirect
-              }}
-              onClick={() => window.location.href = product.redirect_url}
-              disabled={false}
-              className="w-full py-4 px-6 bg-stone-950 text-stone-50 rounded-xl font-bold text-lg uppercase tracking-wider hover:bg-stone-800 transition-colors shadow-[0_20px_80px_rgba(0,0,0,0.15)] flex items-center justify-center gap-3"
+              onClick={handleRedirect}
+              disabled={redirecting}
+              className="w-full py-4 px-6 bg-stone-950 text-stone-50 rounded-xl font-bold text-lg uppercase tracking-wider hover:bg-stone-800 transition-colors shadow-[0_20px_80px_rgba(0,0,0,0.15)] flex items-center justify-center gap-3 disabled:opacity-50"
             >
-              <ShoppingBag size={22} />
-              Ir para página do produto
+              {redirecting ? (
+                <Loader2 size={22} className="animate-spin" />
+              ) : (
+                <ShoppingBag size={22} />
+              )}
+              {redirecting ? "Redirecionando..." : "Ir para página do produto"}
               <ExternalLink size={20} />
             </button>
 
@@ -213,7 +202,7 @@ export function ProductCapture() {
 
             <div className="mt-6 pt-6 border-t border-stone-200">
               <Link
-                to={`/f/${new URLSearchParams(window.location.search).get("slug") || "quiz"}/resultado`}
+                to={`/f/${slug}/resultado`}
                 className="text-stone-500 hover:text-amber-600 text-sm font-medium"
               >
                 ← Voltar ao resultado completo

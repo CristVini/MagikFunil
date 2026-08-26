@@ -1,24 +1,24 @@
-import { useAuth } from '@hooks/useAuth';
-import { LayoutDashboard, Package, Users, Palette, CreditCard, Globe, TrendingUp, Target, DollarSign } from 'lucide-react';
-import { formatCurrency, formatNumber } from '@lib/utils';
+import { useAuth } from "@hooks/useAuth";
+import { LayoutDashboard, Package, Users, Palette, CreditCard, Globe, TrendingUp, Target, DollarSign, Activity, Building2, Shield, Crown, ArrowUp, Check, X, Loader2 as LoaderIcon, Sparkles, ChevronRight, ExternalLink } from "lucide-react";
+import { formatCurrency, formatNumber } from "@lib/utils";
 
 const KPI_CARDS = [
-  { label: 'Leads Totais', value: '0', icon: Users, color: 'bg-blue-500/10 text-blue-600', change: '+12%', trend: 'up' },
-  { label: 'Quiz Completados', value: '0', icon: Target, color: 'bg-purple-500/10 text-purple-600', change: '+8%', trend: 'up' },
-  { label: 'Taxa de Conversão', value: '0%', icon: TrendingUp, color: 'bg-green-500/10 text-green-600', change: '+2.3%', trend: 'up' },
-  { label: 'Cliques em Produtos', value: '0', icon: Package, color: 'bg-amber-500/10 text-amber-600', change: '+15%', trend: 'up' },
+  { label: "Leads Totais", value: "0", icon: Users, color: "bg-blue-500/10 text-blue-600", change: "+12%", trend: "up" },
+  { label: "Quiz Completados", value: "0", icon: Target, color: "bg-purple-500/10 text-purple-600", change: "+8%", trend: "up" },
+  { label: "Taxa de Conversão", value: "0%", icon: TrendingUp, color: "bg-green-500/10 text-green-600", change: "+2.3%", trend: "up" },
+  { label: "Cliques em Produtos", value: "0", icon: Package, color: "bg-amber-500/10 text-amber-600", change: "+15%", trend: "up" },
 ];
 
 export function TenantDashboard() {
   const { user } = useAuth();
-  const tenantName = user?.user_metadata?.tenant_name || 'Sua Marca';
+  const tenantName = user?.user_metadata?.tenant_name || "Sua Marca";
 
   return (
-    <div className="space-y-8" style={{ fontFamily: 'var(--font-sans)' }}>
+    <div className="space-y-8" style={{ fontFamily: "var(--font-sans)" }}>
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-display font-bold text-stone-950" style={{ fontFamily: 'var(--font-display)' }}>
+          <h1 className="text-3xl font-display font-bold text-stone-950" style={{ fontFamily: "var(--font-display)" }}>
             Olá, {tenantName} 👋
           </h1>
           <p className="text-stone-500 mt-1">Aqui está o que está acontecendo no seu funil hoje</p>
@@ -38,7 +38,7 @@ export function TenantDashboard() {
               <div className={`p-3 rounded-xl ${kpi.color}`}>
                 <kpi.icon size={24} />
               </div>
-              <div className={`flex items-center gap-1 text-sm font-medium ${kpi.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
+              <div className={`flex items-center gap-1 text-sm font-medium ${kpi.trend === "up" ? "text-green-600" : "text-red-600"}`}>
                 <span>{kpi.change}</span>
                 <span className="text-stone-400">vs mês passado</span>
               </div>
@@ -49,6 +49,7 @@ export function TenantDashboard() {
             </div>
           </div>
         ))}
+      </div>
 
       {/* Charts Placeholder */}
       <div className="grid lg:grid-cols-2 gap-6">

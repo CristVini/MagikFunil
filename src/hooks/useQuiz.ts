@@ -1,6 +1,12 @@
 import { create } from "zustand";
-import { supabase } from "@lib/supabase";
-import type { Profile, QuizQuestion, QuizOption, QuizAnswer } from "@packages/quiz-engine";
+import { supabase, isSupabaseConfigured } from "@lib/supabase";
+import type { Profile, QuizQuestion, QuizAnswer } from "@packages/quiz-engine";
+import {
+  MOCK_TEMPLATE,
+  MOCK_PROFILES,
+  MOCK_QUESTIONS,
+  MOCK_PRODUCTS_BY_PROFILE,
+} from "@pages/public/mockData";
 
 interface QuizState {
   questions: QuizQuestion[];
@@ -13,7 +19,7 @@ interface QuizState {
   tenantId: string | null;
   templateId: string | null;
   leadId: string | null;
-  
+
   fetchQuiz: (templateSlug: string) => Promise<void>;
   answer: (profileIds: string[]) => void;
   next: () => void;
@@ -21,6 +27,7 @@ interface QuizState {
   finish: () => Promise<void>;
   reset: () => void;
   getResult: () => { winner: Profile | null; runnerUp: Profile | null; ranking: Profile[]; scores: Record<string, number> };
+  getRecommendedProducts: (profileId: string) => any[];
   trackEvent: (kind: string, payload?: Record<string, any>) => Promise<void>;
 }
 
@@ -39,222 +46,178 @@ export const useQuiz = create<QuizState>((set, get) => ({
   fetchQuiz: async (templateSlug: string) => {
     set({ loading: true, error: null });
     try {
-      // Buscar template
-      const { data: template } = await supabase
+      // MODO DEMO: se Supabase não configurado, usa os dados mock do template encapsulados
+      if (!isSupabaseConfigured) {
+        console.warn("[useQuiz] Modo demo — usando dados mock do template encapsulados-nutraceuticos");
+        const profilesMap: Record<string, Profile> = {};
+        MOCK_PROFILES.forEach((p) => { profilesMap[p.id] = p; });
+        set({
+          questions: MOCK_QUESTIONS,
+          profiles: profilesMap,
+          templateId: MOCK_TEMPLATE.id,
+          tenantId: MOCK_TEMPLATE.tenant_id,
+          loading: false,
+          error: null,
+        });
+        return;
+      }
+
+      // Buscar template (produção)
+      const { data: template, error: templateError } = await supabase
         .from("templates")
         .select("id, tenant_id")
         .eq("slug", templateSlug)
         .single();
 
-      if (!template) throw new Error("Template não encontrado");
+      if (templateError || !template) throw new Error("Template não encontrado");
 
-      // Buscar tenant do template (para events)
-      const { data: templateWithTenant } = await supabase
-        .from("templates")
-        .select(`
-          id,
-          tenants!inner(id, slug)
-        `)
-        .eq("id", template.id)
-        .single();
+      set({ templateId: template.id, tenantId: template.tenant_id });
 
-      const tenantId = templateWithTenant?.tenants?.id;
-
-      // Buscar perguntas
-      const { data: questions } = await supabase
+      const { data: questions, error: questionsError } = await supabase
         .from("quiz_questions")
-        .select(`
-          *,
-          quiz_options (*)
-        `)
+        .select("*, options:quiz_options(*)")
         .eq("template_id", template.id)
         .order("position");
 
-      // Buscar perfis
-      const { data: profiles } = await supabase
+      if (questionsError) throw questionsError;
+
+      const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
         .select("*")
         .eq("template_id", template.id)
         .order("display_order");
 
-      if (!questions || !profiles) throw new Error("Dados do quiz incompletos");
+      if (profilesError) throw profilesError;
 
-      const profilesMap = Object.fromEntries(profiles.map(p => [p.id, p]));
-      const questionsWithOptions = questions.map(q => ({
-        ...q,
-        options: q.quiz_options?.sort((a, b) => a.position - b.position).map(opt => ({
-          text: opt.text,
-          profile_ids: opt.profile_ids,
-          position: opt.position,
-        })) || [],
-      }));
+      const profilesMap: Record<string, Profile> = {};
+      (profiles as any[]).forEach((p: any) => { profilesMap[p.id] = p as Profile; });
 
       set({
-        questions: questionsWithOptions,
+        questions: (questions as any[]) || [],
         profiles: profilesMap,
-        currentStep: 0,
-        scores: {},
-        answers: [],
         loading: false,
-        tenantId: tenantId,
-        templateId: template.id,
-        leadId: null,
+        error: null,
       });
     } catch (err) {
+      // Se falhar e estivermos em demo, cai nos mocks
+      if (!isSupabaseConfigured) {
+        const profilesMap: Record<string, Profile> = {};
+        MOCK_PROFILES.forEach((p) => { profilesMap[p.id] = p; });
+        set({ questions: MOCK_QUESTIONS, profiles: profilesMap, loading: false, error: null });
+        return;
+      }
       set({ error: err instanceof Error ? err.message : "Erro ao carregar quiz", loading: false });
     }
   },
 
   answer: (profileIds: string[]) => {
-    const { currentStep, questions, answers, scores } = get();
+    const { currentStep, scores, answers, questions } = get();
     const question = questions[currentStep];
-    const weight = question.weight || 1;
+    if (!question) return;
 
     const newScores = { ...scores };
-    profileIds.forEach(pid => {
-      newScores[pid] = (newScores[pid] || 0) + weight;
+    profileIds.forEach((pid) => {
+      newScores[pid] = (newScores[pid] || 0) + (question.weight || 1);
     });
 
-    const newAnswers = [...answers, {
-      question_id: question.id,
-      option_text: question.options.find(o => o.profile_ids.some(pid => profileIds.includes(pid)))?.text || "",
-      profile_ids: profileIds,
-    }];
+    const newAnswers = [
+      ...answers,
+      {
+        question_id: question.id,
+        option_text: profileIds.join(","),
+        profile_ids: profileIds,
+        step: currentStep,
+      },
+    ];
 
     set({ scores: newScores, answers: newAnswers });
   },
 
-  next: () => set(state => ({ currentStep: Math.min(state.currentStep + 1, state.questions.length - 1) })),
-  previous: () => set(state => ({ currentStep: Math.max(state.currentStep - 1, 0) })),
+  next: () => {
+    const { questions } = get();
+    set((state) => ({ currentStep: Math.min(state.currentStep + 1, questions.length - 1) }));
+  },
+
+  previous: () => {
+    const { currentStep } = get();
+    if (currentStep > 0) {
+      set({ currentStep: currentStep - 1 });
+    }
+  },
 
   finish: async () => {
-    const { answers, scores, questions, profiles, tenantId, templateId } = get();
-    
-    // Calcular ranking
-    const ranking = Object.entries(scores)
-      .sort((a, b) => {
-        const scoreDiff = b[1] - a[1];
-        if (scoreDiff !== 0) return scoreDiff;
-        const profileA = profiles[a[0]];
-        const profileB = profiles[b[0]];
-        return (profileA?.display_order || 999) - (profileB?.display_order || 999);
-      })
-      .map(([id]) => profiles[id])
-      .filter(Boolean);
+    const { answers, scores, tenantId, templateId, leadId } = get();
+    try {
+      const result = get().getResult();
 
-    if (ranking.length === 0) return;
-
-    const winner = ranking[0];
-    const runnerUp = ranking[1];
-
-    // Salvar lead
-    if (tenantId && templateId) {
-      try {
-        const { data: lead, error } = await supabase
+      let finalLeadId = leadId;
+      if (!finalLeadId && tenantId && isSupabaseConfigured) {
+        const { data: lead } = await supabase
           .from("leads")
           .insert({
             tenant_id: tenantId,
-            winning_profile: winner.id,
-            secondary_profile: runnerUp?.id || null,
-            answers: { answers, scores },
-            source_url: window.location.href,
-            status: "new",
+            template_id: templateId,
+            winner_profile: result.winner?.id,
+            scores,
+            answers,
           })
           .select("id")
           .single();
-
-        if (error) throw error;
-
-        const leadId = lead.id;
-
-        // Atualizar estado com leadId
-        set({ leadId });
-
-        // Registrar eventos granulares
-        const events = answers.map((answer, idx) => ({
-          tenant_id: tenantId,
-          lead_id: leadId,
-          kind: idx === 0 ? "quiz_start" : idx === answers.length - 1 ? "quiz_complete" : "quiz_question",
-          product_id: null,
-          profile_id: answer.profile_ids[0] || null,
-          source_url: window.location.href,
-          referrer: document.referrer,
-          payload: { 
-            question_id: questions[idx]?.id,
-            option_text: answer.option_text,
-            profile_ids: answer.profile_ids,
-            step: idx + 1,
-          },
-        }));
-
-        // Adicionar evento de recommendation_view
-        events.push({
-          tenant_id: tenantId,
-          lead_id: leadId,
-          kind: "recommendation_view",
-          product_id: null,
-          profile_id: ranking[0]?.id || null,
-          source_url: window.location.href,
-          referrer: document.referrer,
-          payload: { 
-            winner_profile: ranking[0]?.id,
-            runner_up_profile: ranking[1]?.id,
-            ranking: ranking.map(p => p.id),
-          },
-        });
-
-        // Inserir todos os eventos
-        await supabase.from("events").insert(events);
-
-      } catch (err) {
-        console.error("Erro ao salvar lead/eventos:", err);
+        finalLeadId = lead?.id;
       }
-    }
 
-    // Redirecionar para resultado
-    // O roteamento será feito pelo componente pai
+      await get().trackEvent("quiz_complete", {
+        winner_profile: result.winner?.id,
+        scores,
+      });
+    } catch (err) {
+      console.error("Erro ao finalizar quiz:", err);
+    }
   },
 
-  reset: () => set({
-    currentStep: 0,
-    scores: {},
-    answers: [],
-    leadId: null,
-  }),
+  reset: () => {
+    set({
+      currentStep: 0,
+      scores: {},
+      answers: [],
+      leadId: null,
+      loading: false,
+      error: null,
+    });
+  },
 
   getResult: () => {
-    const { scores, profiles, answers } = get();
-    const ranking = Object.entries(scores)
-      .sort((a, b) => {
-        const scoreDiff = b[1] - a[1];
-        if (scoreDiff !== 0) return scoreDiff;
-        const profileA = profiles[a[0]];
-        const profileB = profiles[b[0]];
-        return (profileA?.display_order || 999) - (profileB?.display_order || 999);
-      })
-      .map(([id]) => profiles[id])
-      .filter(Boolean);
-    
+    const { scores, profiles } = get();
+    const sorted = Object.entries(scores)
+      .sort(([, a], [, b]) => b - a)
+      .map(([id, score]) => ({ ...profiles[id], score }));
+
     return {
-      winner: ranking[0] || null,
-      runnerUp: ranking[1] || null,
-      ranking,
+      winner: sorted[0] || null,
+      runnerUp: sorted[1] || null,
+      ranking: sorted,
       scores,
-      answers,
     };
   },
 
+  getRecommendedProducts: (profileId: string) => {
+    // Em demo, usa os mocks por perfil; em produção seria via Supabase
+    return MOCK_PRODUCTS_BY_PROFILE[profileId] || [];
+  },
+
   trackEvent: async (kind: string, payload?: Record<string, any>) => {
-    const { tenantId, leadId } = get();
-    if (!tenantId) return;
-    
-    await supabase.from("events").insert({
-      tenant_id: tenantId,
-      lead_id: leadId,
-      kind,
-      payload,
-      source_url: window.location.href,
-      referrer: document.referrer,
-    });
+    try {
+      if (!isSupabaseConfigured) {
+        console.warn("[useQuiz] Track (demo):", kind, payload);
+        return;
+      }
+      await supabase.from("events").insert({
+        kind,
+        payload: payload || {},
+        quiz_id: get().questions[0]?.id,
+      });
+    } catch (err) {
+      console.error("Erro ao rastrear evento:", err);
+    }
   },
 }));

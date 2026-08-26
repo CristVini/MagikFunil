@@ -92,7 +92,7 @@ export function TenantPublication() {
 
       if (error) throw error;
 
-      setTenant(prev => ({ ...prev, custom_domain: formData.custom_domain }));
+      setTenant((prev: any) => ({ ...prev, custom_domain: formData.custom_domain }));
       await checkDns();
       alert('Domínio salvo! Verifique a configuração DNS abaixo.');
     } catch (err) {

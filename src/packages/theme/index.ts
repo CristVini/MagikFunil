@@ -10,6 +10,17 @@ export interface TenantTheme {
     border: string;
     profile: Record<string, string>;
   };
+  // Identidade visual "dark" — superfície escura usada em telas de destaque
+  // (ex.: Resultado). O cliente pode personalizar o ACENTO e a COR PRIMÁRIA
+  // (via colors acima); a superfície escura é a identidade base do template.
+  dark?: {
+    background: string;
+    surface: string;
+    text: string;
+    textMuted: string;
+    border: string;
+    onPrimary: string;
+  };
   fonts: {
     sans: string;
     serif: string;
@@ -34,15 +45,24 @@ export const DEFAULT_TENANT_THEME: TenantTheme = {
     textMuted: '#78716C',    // stone-500
     border: '#E7E5E4',       // stone-200
     profile: {
-      'emagrece-metaboliza': '#16A34A',
-      'zen-descanso': '#6D28D9',
-      'beleza-dentro-fora': '#EC4899',
-      'imuno-forte': '#0EA5E9',
-      'energia-total': '#F59E0B',
-      'equilibrio-ritmo': '#8B5CF6',
-      'performance-musculo': '#EF4444',
-      'intestino-saudavel': '#14B8A6',
+      'descanso': '#6D28D9',
+      'energia': '#F59E0B',
+      'imunidade': '#0EA5E9',
+      'digestao': '#14B8A6',
+      'beleza': '#EC4899',
+      'equilibrio': '#8B5CF6',
+      'performance': '#EF4444',
+      'emagrecimento': '#16A34A',
     },
+  },
+  // Superfície escura (identidade base para telas de destaque como o Resultado)
+  dark: {
+    background: '#0C0A09',   // stone-950
+    surface: '#1C1917',      // stone-900
+    text: '#FAFAF9',         // stone-50
+    textMuted: '#A8A29E',    // stone-400
+    border: '#292524',       // stone-800
+    onPrimary: '#0C0A09',    // texto sobre cor primária no escuro
   },
   fonts: {
     sans: 'Inter, system-ui, sans-serif',
@@ -50,8 +70,8 @@ export const DEFAULT_TENANT_THEME: TenantTheme = {
     display: 'Playfair Display, Georgia, serif',
   },
   name: 'MagikFunil',
-  headline: 'Descubra seu protocolo personalizado',
-  subheadline: 'Responda ao quiz e receba recomendações baseadas em ciência',
+  headline: 'Descubra o cuidado certo pra você',
+  subheadline: 'Responda algumas perguntas e receba um protocolo feito para a sua rotina',
   ctaText: 'Começar agora',
 };
 
@@ -69,11 +89,21 @@ export function applyTheme(theme: TenantTheme): void {
   root.style.setProperty('--theme-border', theme.colors.border);
   
   // Fontes
-  root.style.setProperty('--font-sans', theme.fonts.sans);
-  root.style.setProperty('--font-serif', theme.fonts.serif);
-  root.style.setProperty('--font-display', theme.fonts.display);
-  
-  // Logo
+    root.style.setProperty('--font-sans', theme.fonts.sans);
+    root.style.setProperty('--font-serif', theme.fonts.serif);
+    root.style.setProperty('--font-display', theme.fonts.display);
+
+    // Superfície escura (telas de destaque: Resultado, modais)
+    if (theme.dark) {
+      root.style.setProperty('--theme-dark-background', theme.dark.background);
+      root.style.setProperty('--theme-dark-surface', theme.dark.surface);
+      root.style.setProperty('--theme-dark-text', theme.dark.text);
+      root.style.setProperty('--theme-dark-text-muted', theme.dark.textMuted);
+      root.style.setProperty('--theme-dark-border', theme.dark.border);
+      root.style.setProperty('--theme-dark-on-primary', theme.dark.onPrimary);
+    }
+
+    // Logo
   if (theme.logo) {
     root.style.setProperty('--theme-logo', theme.logo);
   }
@@ -93,8 +123,31 @@ export function createThemeFromTenant(tenant: {
   headline?: string;
   subheadline?: string;
   cta_text?: string;
+  primary_font?: string;   // fonte sans (Inter, etc.)
+  display_font?: string;   // fonte display/serif (Playfair, etc.)
   whatsapp?: string;
 }): TenantTheme {
+  // Mapa de fontes curado — o cliente escolhe de um conjunto, nunca digita livre
+  const SERIF_FONTS: Record<string, string> = {
+    playfair: 'Playfair Display, Georgia, serif',
+    serif4: 'Georgia, "Times New Roman", serif',
+    lora: 'Lora, Georgia, serif',
+    merriweather: 'Merriweather, Georgia, serif',
+  };
+  const SANS_FONTS: Record<string, string> = {
+    inter: 'Inter, system-ui, sans-serif',
+    poppins: 'Poppins, system-ui, sans-serif',
+    opensans: '"Open Sans", system-ui, sans-serif',
+    manrope: 'Manrope, system-ui, sans-serif',
+  };
+
+  // Resolve a fonte display: se o tenant enviar uma chave conhecida, usa; se enviar uma URL de fonte,
+  // preserva; senão cai no padrão (Playfair).
+  const resolveDisplay = (value?: string) =>
+    (value && SERIF_FONTS[value]) || value || DEFAULT_TENANT_THEME.fonts.display;
+  const resolveSans = (value?: string) =>
+    (value && SANS_FONTS[value]) || value || DEFAULT_TENANT_THEME.fonts.sans;
+
   return {
     ...DEFAULT_TENANT_THEME,
     colors: {
@@ -102,6 +155,11 @@ export function createThemeFromTenant(tenant: {
       primary: tenant.primary_color || DEFAULT_TENANT_THEME.colors.primary,
       secondary: tenant.secondary_color || DEFAULT_TENANT_THEME.colors.secondary,
       accent: tenant.accent_color || DEFAULT_TENANT_THEME.colors.accent,
+    },
+    fonts: {
+      sans: resolveSans(tenant.primary_font),
+      serif: resolveDisplay(tenant.display_font),
+      display: resolveDisplay(tenant.display_font),
     },
     logo: tenant.logo_url,
     name: tenant.name || DEFAULT_TENANT_THEME.name,
@@ -111,3 +169,17 @@ export function createThemeFromTenant(tenant: {
     whatsapp: tenant.whatsapp,
   };
 }
+
+// Fontes disponíveis para o cliente customizar (opções curadas que aparecem no painel)
+export const AVAILABLE_FONTS = {
+  display: [
+    { key: 'playfair', label: 'Playfair Display' },
+    { key: 'serif4', label: 'Georgia' },
+    { key: 'lora', label: 'Lora' },
+  ],
+  sans: [
+    { key: 'inter', label: 'Inter' },
+    { key: 'poppins', label: 'Poppins' },
+    { key: 'opensans', label: 'Open Sans' },
+  ],
+};
