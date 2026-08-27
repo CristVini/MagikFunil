@@ -65,9 +65,9 @@ export const DEFAULT_TENANT_THEME: TenantTheme = {
     onPrimary: '#0C0A09',    // texto sobre cor primária no escuro
   },
   fonts: {
-    sans: 'Inter, system-ui, sans-serif',
-    serif: 'Playfair Display, Georgia, serif',
-    display: 'Playfair Display, Georgia, serif',
+    sans: 'Manrope, system-ui, sans-serif',
+    serif: 'Lora, Georgia, serif',
+    display: 'Lora, Georgia, serif',
   },
   name: 'MagikFunil',
   headline: 'Descubra o cuidado certo pra você',

@@ -76,7 +76,7 @@ export function ScienceSection({ onExplore }: { onExplore?: () => void }) {
               Por que esse funil entrega mais do que um formulário
             </h2>
             <p className="max-w-2xl mx-auto" style={{ color: "var(--theme-text-muted)" }}>
-              Ele não pergunta só o que você quer — ele entende o que você precisa antes de recomendar. Isso aumenta a chance de decisão, não só de 'mais um clique'.
+              Ele entende o que você precisa antes de recomendar — não só o que você quer.
             </p>
           </div>
 

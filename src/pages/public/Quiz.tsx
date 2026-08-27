@@ -66,8 +66,8 @@ export function Quiz() {
           </div>
           <div className="w-full bg-stone-200 h-1.5 rounded-full overflow-hidden">
             <div
-              className="bg-amber-500 h-full transition-[width] duration-500 ease-out"
-              style={{ width: `${progress}%` }}
+              className="bg-amber-500 h-full origin-left transition-transform duration-500 ease-out"
+              style={{ transform: `scaleX(${progress / 100})` }}
             />
           </div>
         </div>
