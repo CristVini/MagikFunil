@@ -82,16 +82,22 @@ export function ScienceSection({ onExplore }: { onExplore?: () => void }) {
 
           <div className="grid md:grid-cols-3 gap-6 mb-12">
             {PRINCIPLES.map((p, i) => (
-              <div key={i} className="text-center p-8 rounded-2xl border border-white/10 bg-white/5 hover:border-white/25 hover:-translate-y-1 transition-all duration-300">
-                <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-amber-500/15 flex items-center justify-center">
-                  <p.icon size={30} className="text-amber-400" />
+              <div key={i} className="p-6 rounded-2xl border border-white/10 bg-white/5 hover:border-white/25 hover:-translate-y-1 transition-all duration-300">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
+                    <p.icon size={24} className="text-amber-400" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="font-display text-base font-bold" style={{ color: "var(--theme-text)", fontFamily: "var(--font-display)" }}>
+                      {p.title}
+                    </h3>
+                    <div className="mt-2 space-y-2">
+                      {p.lines.map((line, j) => (
+                        <p key={j} className="text-sm leading-relaxed" style={{ color: "var(--theme-text-muted)" }}>{line}</p>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <h3 className="font-display text-lg font-bold mb-3" style={{ color: "var(--theme-text)", fontFamily: "var(--font-display)" }}>
-                  {p.title}
-                </h3>
-                {p.lines.map((line, j) => (
-                  <p key={j} className="text-sm mb-2" style={{ color: "var(--theme-text-muted)" }}>{line}</p>
-                ))}
               </div>
             ))}
           </div>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>MagikFunil — Ações rápidas</title>
+  <style>
+    :root {
+      --background: #0a0a0a;
+      --foreground: #ededed;
+      --muted-foreground: #a1a1aa;
+      --border: #27272a;
+      --accent: #a855f7;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      color: var(--foreground);
+      font-family: inherit;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .widget {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: transparent;
+      color: var(--foreground);
+      cursor: pointer;
+      text-align: left;
+      font: inherit;
+      transition: border-color .15s ease, color .15s ease;
+    }
+
+    .row:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .row:active {
+      opacity: .92;
+    }
+
+    .label {
+      color: var(--muted-foreground);
+    }
+  </style>
+</head>
+<body>
+  <div class="widget" role="region" aria-label="Ações rápidas">
+    <button class="row" data-hermes-send="Ver status do funil">
+      Status do funil
+      <span class="label">quiz, leads e conversão</span>
+    </button>
+
+    <button class="row" data-hermes-send="Abrir relatório de decisão">
+      Relatório de decisão
+      <span class="label">Enterprise</span>
+    </button>
+
+    <button class="row" data-hermes-send="Solicitar ajuda">
+      Falar com suporte
+      <span class="label">abrir atendimento</span>
+    </button>
+  </div>
+
+  <script>
+    // fallback caso o host não disponibilize window.hermes
+    window.hermes = window.hermes || { send: (msg) => console.log('[widget]', msg) };
+  </script>
+</body>
+</html>

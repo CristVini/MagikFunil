@@ -140,29 +140,24 @@ export function Landing() {
             </div>
           </div>
 
-          {/* Right: Visual — card glass (mesmo vocabulário da HomePage) */}
-          <div className="relative">
-            <div className="aspect-square max-w-md mx-auto">
-              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/20 to-[var(--theme-secondary)]/20 rounded-3xl blur-3xl" />
-              <div className="relative z-10 rounded-3xl p-8 border border-white/10 backdrop-blur-xl bg-white/5 shadow-2xl shadow-black/40">
-                <div className="space-y-6">
-                  {[
-                    { icon: Brain, tint: "bg-amber-500/15 text-amber-400", title: "Um momento com você", desc: "Algumas perguntas simples, em menos de 2 minutos" },
-                    { icon: Sparkles, tint: "bg-[var(--theme-secondary)]/15 text-[var(--theme-secondary)]", title: "Feito pra você", desc: "Recomendações pensadas para a sua rotina" },
-                    { icon: Shield, tint: "bg-[var(--theme-primary)]/15 text-[var(--theme-primary)]", title: "Tranquilidade", desc: "Produtos que não exigem receita, com acompanhamento" },
-                  ].map((item, i) => (
-                    <div key={i} className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/10">
-                      <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 ${item.tint}`}>
-                        <item.icon size={28} />
-                      </div>
-                      <div className="text-left">
-                        <h3 className="font-semibold" style={{ color: "var(--theme-text)" }}>{item.title}</h3>
-                        <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>{item.desc}</p>
-                      </div>
-                    </div>
-                  ))}
+          {/* Right: Visual — grupo de items, sem card pai (evita nested-cards) */}
+          <div>
+            <div className="space-y-4">
+              {[
+                { icon: Brain, tint: "bg-amber-500/15 text-amber-400", title: "Um momento com você", desc: "Algumas perguntas simples, em menos de 2 minutos" },
+                { icon: Sparkles, tint: "bg-[var(--theme-secondary)]/15 text-[var(--theme-secondary)]", title: "Feito pra você", desc: "Recomendações pensadas para a sua rotina" },
+                { icon: Shield, tint: "bg-[var(--theme-primary)]/15 text-[var(--theme-primary)]", title: "Tranquilidade", desc: "Produtos que não exigem receita, com acompanhamento" },
+              ].map((item, i) => (
+                <div key={i} className="flex items-center gap-4 p-5 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl hover:border-white/25 transition-all hover:-translate-y-0.5">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${item.tint}`}>
+                    <item.icon size={24} />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold" style={{ color: "var(--theme-text)" }}>{item.title}</p>
+                    <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>{item.desc}</p>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>
@@ -183,14 +178,18 @@ export function Landing() {
               { icon: Sparkles, title: "2. Receba sua recomendação", desc: "Com base nas suas respostas, mostramos o cuidado que mais combina com o seu momento." },
               { icon: Zap, title: "3. Comece o seu cuidado", desc: "Um protocolo simples de produtos, para você começar a se sentir melhor ainda hoje." },
             ].map((step, i) => (
-              <div key={i} className="text-center p-8 rounded-2xl border border-white/10 bg-white/5 hover:border-amber-400/40 hover:bg-white/10 hover:-translate-y-1 transition-all duration-300">
-                <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-amber-500/15 flex items-center justify-center">
-                  <step.icon size={32} className="text-amber-400" />
+              <div key={i} className="p-6 rounded-2xl border border-white/10 bg-white/5 hover:border-amber-400/40 hover:bg-white/10 hover:-translate-y-1 transition-all duration-300">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
+                    <step.icon size={24} className="text-amber-400" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="font-display text-lg font-bold" style={{ color: "var(--theme-text)", fontFamily: "var(--font-display)" }}>
+                      {step.title}
+                    </h3>
+                    <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>{step.desc}</p>
+                  </div>
                 </div>
-                <h3 className="font-display text-xl font-bold mb-3" style={{ color: "var(--theme-text)", fontFamily: "var(--font-display)" }}>
-                  {step.title}
-                </h3>
-                <p style={{ color: "var(--theme-text-muted)" }}>{step.desc}</p>
               </div>
             ))}
           </div>
