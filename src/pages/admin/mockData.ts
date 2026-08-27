@@ -85,6 +85,7 @@ export interface AdminTemplate {
   profiles: AdminProfile[];
   question_count: number;
   product_count: number;
+  questions?: string[];
 }
 
 export const MOCK_TEMPLATES: AdminTemplate[] = [
@@ -97,6 +98,22 @@ export const MOCK_TEMPLATES: AdminTemplate[] = [
     status: "active",
     question_count: 14,
     product_count: 20,
+    questions: [
+      "Como você quer se sentir nas próximas semanas?",
+      "Qual sua maior dificuldade hoje?",
+      "Como está sua energia durante o dia?",
+      "Sua imunidade costuma precisar de reforço?",
+      "Que tipo de descanso você deseja?",
+      "Como está sua digestão?",
+      "O que mais te incomoda no espelho?",
+      "Qual objetivo é prioridade agora?",
+      "Sua pele e cabelo pedem mais cuidado?",
+      "Você sente fome fora de hora?",
+      "Como você lida com o estresse?",
+      "Qual rotina você quer construir?",
+      "O que te impede de começar?",
+      "Qual estilo de vida combina com você?",
+    ],
     profiles: [
       { id: "p-descanso", name: "Modo Descansar", archetype: "Sono & Relaxamento", color: "#6D28D9", scientific_basis: "Magnésio e melatonina no ritmo circadiano", products: ["Kit Sono Tranquilo", "Magnésio Relax"] },
       { id: "p-imunidade", name: "Modo Protegido", archetype: "Imunidade", color: "#0EA5E9", scientific_basis: "Vitamina C, zinco e vitamina D na resposta imune", products: ["Defesas do Corpo"] },

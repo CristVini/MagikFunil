@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Users, HelpCircle, Package, ChevronRight, Plus, ArrowLeft, MessageCircleQuestion, ClipboardList } from "lucide-react";
+import { FileText, Users, HelpCircle, Package, ChevronRight, Plus, ArrowLeft, MessageCircleQuestion, ClipboardList, X } from "lucide-react";
 import { MOCK_TEMPLATES, AdminTemplate } from "./mockData";
 import { cn } from "@lib/utils";
 
@@ -23,8 +23,60 @@ const MOCK_QUESTIONS = [
   "Qual estilo de vida combina com você?",
 ];
 
-function TemplateDetail({ tpl, onBack }: { tpl: AdminTemplate; onBack: () => void }) {
+// Modal genérico de criação de item (perfil / pergunta / produto)
+function CreateItemModal({ tab, onClose, onCreate }: {
+  tab: "perfis" | "quiz" | "catalogo";
+  onClose: () => void;
+  onCreate: (name: string, extra?: Record<string, any>) => void;
+}) {
+  const [name, setName] = useState("");
+  const [extra, setExtra] = useState<Record<string, string>>({});
+
+  const labels: Record<string, { title: string; placeholder: string; extraLabel?: string }> = {
+    perfis: { title: "Novo perfil", placeholder: "Nome do perfil (ex: Modo Vitalidade)", extraLabel: "Arquétipo (ex: Energia & Performance)" },
+    quiz: { title: "Nova pergunta", placeholder: "Texto da pergunta…" },
+    catalogo: { title: "Novo produto", placeholder: "Nome do produto (ex: Vitamina D3)", extraLabel: "Categoria (ex: suplemento_oral)" },
+  };
+  const L = labels[tab];
+
+  return (
+    <div className="fixed inset-0 z-50 bg-stone-950/50 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-md w-full p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-stone-950">{L.title}</h2>
+          <button onClick={onClose} className="p-2 text-stone-400 hover:text-stone-600"><X size={20} /></button>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-stone-700 mb-1">{tab === "quiz" ? "Pergunta" : "Nome"}</label>
+            <input value={name} onChange={e => setName(e.target.value)} placeholder={L.placeholder}
+              className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-stone-950 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+          </div>
+          {L.extraLabel && (
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-1">Complemento</label>
+              <input value={extra.extra || ""} onChange={e => setExtra({ extra: e.target.value })} placeholder={L.extraLabel}
+                className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-stone-950 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+            </div>
+          )}
+        </div>
+        <div className="flex justify-end gap-3 mt-6">
+          <button onClick={onClose} className="px-6 py-3 bg-stone-100 text-stone-700 rounded-xl font-medium hover:bg-stone-200">Cancelar</button>
+          <button onClick={() => { if (name.trim()) { onCreate(name.trim(), extra); onClose(); } }}
+            className="px-6 py-3 bg-amber-500 text-stone-950 rounded-xl font-semibold hover:bg-amber-400">Adicionar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TemplateDetail({ tpl, onBack, onAddItem }: {
+  tpl: AdminTemplate;
+  onBack: () => void;
+  onAddItem: (tab: "perfis" | "quiz" | "catalogo", name: string, extra?: Record<string, any>) => void;
+}) {
   const [tab, setTab] = useState<"perfis" | "quiz" | "catalogo">("perfis");
+  const [showModal, setShowModal] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -44,7 +96,7 @@ function TemplateDetail({ tpl, onBack }: { tpl: AdminTemplate; onBack: () => voi
             Nicho: <strong>{tpl.niche}</strong> · {tpl.tenants} tenants usam · slug <code className="bg-stone-100 px-1 rounded">{tpl.slug}</code>
           </p>
         </div>
-        <button className="px-4 py-2 bg-stone-950 text-stone-50 rounded-xl font-medium hover:bg-stone-800 transition-colors flex items-center gap-2 self-start">
+        <button onClick={() => setShowModal(true)} className="px-4 py-2 bg-stone-950 text-stone-50 rounded-xl font-medium hover:bg-stone-800 transition-colors flex items-center gap-2 self-start">
           <Plus size={16} /> Novo item
         </button>
       </div>
@@ -92,7 +144,7 @@ function TemplateDetail({ tpl, onBack }: { tpl: AdminTemplate; onBack: () => voi
             <h3 className="font-semibold text-stone-950">Perguntas do quiz (ordem)</h3>
           </div>
           <div className="divide-y divide-stone-100">
-            {MOCK_QUESTIONS.map((q, i) => (
+            {tpl.questions?.map((q, i) => (
               <div key={i} className="px-6 py-3.5 flex items-center gap-4 hover:bg-stone-50">
                 <span className="w-6 h-6 rounded-full bg-stone-100 text-stone-500 text-xs flex items-center justify-center font-semibold">{i + 1}</span>
                 <p className="flex-1 text-sm text-stone-700">{q}</p>
@@ -129,15 +181,115 @@ function TemplateDetail({ tpl, onBack }: { tpl: AdminTemplate; onBack: () => voi
           </div>
         </div>
       )}
+
+      {showModal && tab === "perfis" && (
+        <CreateItemModal tab="perfis" onClose={() => setShowModal(false)}
+          onCreate={(name, extra) => onAddItem("perfis", name, extra)} />
+      )}
+      {showModal && tab === "quiz" && (
+        <CreateItemModal tab="quiz" onClose={() => setShowModal(false)}
+          onCreate={(name) => onAddItem("quiz", name)} />
+      )}
+      {showModal && tab === "catalogo" && (
+        <CreateItemModal tab="catalogo" onClose={() => setShowModal(false)}
+          onCreate={(name, extra) => onAddItem("catalogo", name, extra)} />
+      )}
+    </div>
+  );
+}
+
+// Modal de novo template
+function CreateTemplateModal({ onClose, onCreate }: { onClose: () => void; onCreate: (t: { name: string; slug: string; niche: string }) => void }) {
+  const [name, setName] = useState("");
+  const [slug, setSlug] = useState("");
+  const [niche, setNiche] = useState("");
+
+  return (
+    <div className="fixed inset-0 z-50 bg-stone-950/50 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-md w-full p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-stone-950">Novo Template</h2>
+          <button onClick={onClose} className="p-2 text-stone-400 hover:text-stone-600"><X size={20} /></button>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-stone-700 mb-1">Nome <span className="text-red-500">*</span></label>
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Exame de Vista"
+              className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-stone-950 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-stone-700 mb-1">Slug</label>
+            <input value={slug} onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))} placeholder="exame-de-vista"
+              className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-stone-950 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-stone-700 mb-1">Nicho</label>
+            <input value={niche} onChange={e => setNiche(e.target.value)} placeholder="Ex: Farmácia de manipulação"
+              className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-stone-950 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 mt-6">
+          <button onClick={onClose} className="px-6 py-3 bg-stone-100 text-stone-700 rounded-xl font-medium hover:bg-stone-200">Cancelar</button>
+          <button onClick={() => { if (name.trim()) { onCreate({ name: name.trim(), slug: slug.trim() || name.trim().toLowerCase().replace(/\s+/g, "-"), niche: niche.trim() }); onClose(); } }}
+            className="px-6 py-3 bg-amber-500 text-stone-950 rounded-xl font-semibold hover:bg-amber-400">Criar</button>
+        </div>
+      </div>
     </div>
   );
 }
 
 export function AdminTemplates() {
+  const [templates, setTemplates] = useState<AdminTemplate[]>(MOCK_TEMPLATES);
   const [selected, setSelected] = useState<AdminTemplate | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+
+  const handleCreate = (t: { name: string; slug: string; niche: string }) => {
+    const novoTemplate: AdminTemplate = {
+      id: `tpl-${Date.now()}`,
+      slug: t.slug || "novo-template",
+      name: t.name,
+      niche: t.niche || "Geral",
+      tenants: 0,
+      status: "draft",
+      profiles: [],
+      question_count: 0,
+      product_count: 0,
+      questions: [],
+    };
+    setTemplates(prev => [...prev, novoTemplate]);
+  };
+
+  const handleAddItem = (templateId: string, tab: "perfis" | "quiz" | "catalogo", name: string, extra?: Record<string, any>) => {
+    setTemplates(prev => prev.map(t => {
+      if (t.id !== templateId) return t;
+      const updated: AdminTemplate = { ...t, questions: t.questions ?? MOCK_QUESTIONS.slice(0, t.question_count) };
+      if (tab === "perfis") {
+        updated.profiles = [...updated.profiles, {
+          id: `p-${Date.now()}`,
+          name,
+          archetype: extra?.extra || "Novo arquétipo",
+          color: "#8B5CF6",
+          scientific_basis: "Base científica a ser definida",
+          products: [],
+        }];
+      } else if (tab === "quiz") {
+        updated.questions = [...(updated.questions ?? []), name];
+        updated.question_count += 1;
+      } else {
+        updated.product_count += 1;
+      }
+      return updated;
+    }));
+  };
 
   if (selected) {
-    return <TemplateDetail tpl={selected} onBack={() => setSelected(null)} />;
+    return (
+      <TemplateDetail
+        tpl={selected}
+        onBack={() => setSelected(null)}
+        onAddItem={(tab, name, extra) => handleAddItem(selected.id, tab, name, extra)}
+      />
+    );
   }
 
   return (
@@ -149,13 +301,13 @@ export function AdminTemplates() {
           </h1>
           <p className="text-stone-500 mt-1">O cérebro do produto: perfis, quiz e catálogo que vendemos</p>
         </div>
-        <button className="px-4 py-2 bg-stone-950 text-stone-50 rounded-xl font-medium hover:bg-stone-800 transition-colors flex items-center gap-2 self-start">
+        <button onClick={() => setShowCreate(true)} className="px-4 py-2 bg-stone-950 text-stone-50 rounded-xl font-medium hover:bg-stone-800 transition-colors flex items-center gap-2 self-start">
           <Plus size={18} /> Novo template
         </button>
       </div>
 
       <div className="grid md:grid-cols-2 gap-5">
-        {MOCK_TEMPLATES.map(tpl => (
+        {templates.map(tpl => (
           <button key={tpl.id} onClick={() => setSelected(tpl)}
             className="text-left bg-white rounded-2xl border border-stone-200 p-6 hover:border-amber-400 hover:shadow-sm transition-all group">
             <div className="flex items-start justify-between mb-4">
@@ -177,6 +329,8 @@ export function AdminTemplates() {
           </button>
         ))}
       </div>
+
+      {showCreate && <CreateTemplateModal onClose={() => setShowCreate(false)} onCreate={handleCreate} />}
     </div>
   );
 }
