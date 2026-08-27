@@ -21,6 +21,7 @@ const ProductCapture = lazyPage(() => import('./pages/public/ProductCapture'), '
 const FunnelUnavailable = lazyPage(() => import('./pages/public/FunnelUnavailable'), 'FunnelUnavailable');
 
 // Auth + onboarding
+const HomePage = lazyPage(() => import('./pages/HomePage'), 'HomePage');
 const Login = lazyPage(() => import('./pages/auth/Login'), 'Login');
 const Register = lazyPage(() => import('./pages/auth/Register'), 'Register');
 const Onboarding = lazyPage(() => import('./pages/auth/Onboarding'), 'Onboarding');
@@ -93,8 +94,8 @@ function App() {
         </Route>
 
         {/* ===== REDIRECTS ===== */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/" element={<HomePage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
   );
