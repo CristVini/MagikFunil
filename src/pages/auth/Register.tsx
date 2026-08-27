@@ -36,7 +36,7 @@ export function Register() {
       setError(error.message);
       setLoading(false);
     } else {
-      navigate('/dashboard', { replace: true });
+      navigate('/onboarding', { replace: true });
     }
   };
 

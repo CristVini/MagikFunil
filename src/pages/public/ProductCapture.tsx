@@ -2,9 +2,10 @@
 
 import { useParams, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { supabase } from "@lib/supabase";
+import { supabase, isSupabaseConfigured } from "@lib/supabase";
+import { MOCK_TENANT, MOCK_PRODUCTS } from "@pages/dashboard/mockData";
 import { useQuiz } from "@hooks/useQuiz";
-import { ArrowRight, ShoppingBag, CheckCircle, Sparkles, Loader2, ExternalLink } from "lucide-react";
+import { ArrowRight, ShoppingBag, CheckCircle, Sparkles, Loader2, ExternalLink, User, Phone, ShieldCheck } from "lucide-react";
 
 export function ProductCapture() {
   const { slug } = useParams<{ slug: string }>();
@@ -13,12 +14,19 @@ export function ProductCapture() {
   const [product, setProduct] = useState<any>(null);
   const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [leadName, setLeadName] = useState("");
+  const [leadPhone, setLeadPhone] = useState("");
+  const [leadCaptured, setLeadCaptured] = useState(false);
 
   useEffect(() => {
     fetchQuiz(slug!);
   }, [slug]);
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setTenant({ ...MOCK_TENANT, slug });
+      return;
+    }
     supabase.from("tenants").select("*").eq("slug", slug).single().then(({ data }: { data: any }) => {
       if (data) setTenant(data);
     });
@@ -30,6 +38,17 @@ export function ProductCapture() {
     const productId = params.get("product_id");
     const productName = params.get("product_name");
 
+    if (!isSupabaseConfigured) {
+      // Modo demo: resolve o produto a partir do mock (por nome ou id)
+      const found = productName
+        ? MOCK_PRODUCTS.find((p: any) => p.name.toLowerCase() === productName.toLowerCase())
+        : productId
+          ? MOCK_PRODUCTS.find((p: any) => p.id === productId)
+          : null;
+      if (found && found.enabled) setProduct(found);
+      return;
+    }
+
     if (productId) {
       supabase.from("products").select("*").eq("id", productId).single().then(({ data }: { data: any }) => {
         if (data) setProduct(data);
@@ -40,6 +59,49 @@ export function ProductCapture() {
       });
     }
   }, []);
+
+  const saveLead = async () => {
+    if (!tenant) return;
+    const result = useQuiz.getState().getResult();
+    const winner = result.winner;
+
+    // Grava o lead local (mock) e tenta no Supabase se configurado
+    const leadPayload = {
+      tenant_id: tenant.id,
+      name: leadName,
+      phone: leadPhone,
+      winner_profile: winner?.id || null,
+      winner_profile_name: winner?.name || null,
+      product_name: product?.name || null,
+      source_url: window.location.href,
+      referrer: document.referrer,
+    };
+
+    try {
+      // Persistência local para o dashboard do tenant (mock)
+      const existing = JSON.parse(window.localStorage.getItem("magikfunil-leads") || "[]");
+      existing.unshift({ ...leadPayload, created_at: new Date().toISOString() });
+      window.localStorage.setItem("magikfunil-leads", JSON.stringify(existing));
+
+      // Supabase real (se configurado)
+      await supabase.from("leads").insert(leadPayload);
+      console.info("[MagikFunil] Lead capturado:", leadPayload);
+    } catch (err) {
+      console.warn("Não foi possível persistir o lead:", err);
+    }
+  };
+
+  const handleSubmitLead = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!leadName.trim() || leadPhone.replace(/\D/g, "").length < 10) {
+      setError("Por favor, informe seu nome e um telefone válido (com DDD).");
+      return;
+    }
+    setError(null);
+    setLeadCaptured(true);
+    await saveLead();
+    await handleRedirect();
+  };
 
   const handleRedirect = async () => {
     if (!tenant || !product) return;
@@ -127,7 +189,7 @@ export function ProductCapture() {
     <div className="min-h-screen bg-stone-50" style={{ fontFamily: "var(--font-sans)" }}>
       <div className="min-h-screen flex items-center justify-center px-6 py-12" style={{ fontFamily: "var(--font-sans)" }}>
         <div className="max-w-md w-full">
-          <div className="bg-white rounded-3xl border border-stone-200 p-8 shadow-[0_0_100px_rgba(0,0,0,0.06)] text-center animate-in fade-in zoom-in-98 duration-700">
+          <div className="bg-white rounded-3xl border border-stone-200 p-8 shadow-[0_0_100px_rgba(0,0,0,0.06)] animate-in fade-in zoom-in-98 duration-700">
             <div className="mb-8">
               <div className="w-20 h-20 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-6 animate-in zoom-in-95 duration-500">
                 <CheckCircle size={32} className="text-green-500" />
@@ -135,21 +197,21 @@ export function ProductCapture() {
             </div>
 
             <div className="space-y-4 mb-8">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/10 text-amber-600 text-sm font-medium">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/10 text-amber-600 text-sm font-medium mx-auto block w-fit">
                 <Sparkles size={16} />
-                <span>Redirecionando para seu produto</span>
+                <span>Seu produto recomendado</span>
               </div>
 
-              <h1 className="text-2xl md:text-3xl font-display font-bold text-stone-950 leading-tight">
+              <h1 className="text-2xl md:text-3xl font-display font-bold text-stone-950 leading-tight text-center">
                 {product.name}
               </h1>
 
-              <p className="text-stone-600 text-sm">
+              <p className="text-stone-600 text-sm text-center">
                 {product.description || "Seu produto recomendado baseado no seu perfil"}
               </p>
             </div>
 
-            <div className="bg-stone-50 rounded-2xl p-6 mb-8 text-left">
+            <div className="bg-stone-50 rounded-2xl p-6 mb-6 text-left">
               <div className="flex items-center gap-4 mb-4">
                 <div className="w-16 h-16 rounded-2xl bg-stone-100 flex items-center justify-center">
                   <Sparkles size={24} className="text-amber-500" />
@@ -159,45 +221,81 @@ export function ProductCapture() {
                   <p className="text-sm text-stone-500 capitalize">{product.category}</p>
                 </div>
               </div>
-
-              {product.key_actives && (
-                <div className="mb-4">
-                  <p className="text-xs text-stone-500 mb-2">Ativos principais:</p>
-                  <div className="flex flex-wrap gap-1">
-                    {Object.entries(product.key_actives || {}).slice(0, 5).map(([k, v]: [string, any]) => (
-                      <span key={k} className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded text-[9px] font-medium">
-                        {k}: {v}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               <p className="text-xs text-stone-500">
                 <strong>Seu perfil:</strong> {winner?.name || "Não identificado"}
               </p>
             </div>
 
+            {leadCaptured ? (
+              <div className="mb-6">
+                <div className="bg-green-50 border border-green-200 rounded-2xl p-5 text-center">
+                  <ShieldCheck size={28} className="text-green-600 mx-auto mb-2" />
+                  <p className="font-semibold text-green-800">Lead registrado!</p>
+                  <p className="text-sm text-green-700 mt-1">
+                    Obrigado, <strong>{leadName}</strong>! Estamos direcionando você ao produto.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmitLead} className="space-y-4 mb-6">
+                <div className="bg-amber-500/5 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
+                  Preencha seus dados para a farmácia entrar em contato e personalizar sua compra:
+                </div>
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-medium text-stone-700 mb-1.5">
+                    <User size={15} className="text-stone-400" /> Seu nome
+                  </label>
+                  <input
+                    type="text"
+                    value={leadName}
+                    onChange={e => setLeadName(e.target.value)}
+                    placeholder="Ex: Maria Silva"
+                    className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-stone-950 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-medium text-stone-700 mb-1.5">
+                    <Phone size={15} className="text-stone-400" /> Seu WhatsApp
+                  </label>
+                  <input
+                    type="tel"
+                    value={leadPhone}
+                    onChange={e => setLeadPhone(e.target.value.replace(/\D/g, ""))}
+                    placeholder="(11) 99999-9999"
+                    maxLength={11}
+                    className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-stone-950 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+              </form>
+            )}
+
             {error && (
               <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-xl text-sm">{error}</div>
             )}
 
-            <button
-              onClick={handleRedirect}
-              disabled={redirecting}
-              className="w-full py-4 px-6 bg-stone-950 text-stone-50 rounded-xl font-bold text-lg uppercase tracking-wider hover:bg-stone-800 transition-colors shadow-[0_20px_80px_rgba(0,0,0,0.15)] flex items-center justify-center gap-3 disabled:opacity-50"
-            >
-              {redirecting ? (
-                <Loader2 size={22} className="animate-spin" />
-              ) : (
+            {leadCaptured ? (
+              <button
+                onClick={handleRedirect}
+                disabled={redirecting}
+                className="w-full py-4 px-6 bg-stone-950 text-stone-50 rounded-xl font-bold text-lg uppercase tracking-wider hover:bg-stone-800 transition-colors shadow-[0_20px_80px_rgba(0,0,0,0.15)] flex items-center justify-center gap-3 disabled:opacity-50"
+              >
+                {redirecting ? <Loader2 size={22} className="animate-spin" /> : <ShoppingBag size={22} />}
+                {redirecting ? "Redirecionando..." : "Continuar para o produto"}
+                <ExternalLink size={20} />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                onClick={handleSubmitLead}
+                className="w-full py-4 px-6 bg-stone-950 text-stone-50 rounded-xl font-bold text-lg uppercase tracking-wider hover:bg-stone-800 transition-colors shadow-[0_20px_80px_rgba(0,0,0,0.15)] flex items-center justify-center gap-3"
+              >
                 <ShoppingBag size={22} />
-              )}
-              {redirecting ? "Redirecionando..." : "Ir para página do produto"}
-              <ExternalLink size={20} />
-            </button>
+                Receber e continuar
+              </button>
+            )}
 
-            <p className="mt-4 text-xs text-stone-500">
-              Você será redirecionado para a página de compra do produto na loja da farmácia.
+            <p className="mt-4 text-xs text-stone-500 text-center">
+              Seus dados são usados apenas para que a farmácia fale sobre seu protocolo.
             </p>
 
             <div className="mt-6 pt-6 border-t border-stone-200">

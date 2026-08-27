@@ -9,6 +9,8 @@ import { ProductCapture } from './pages/public/ProductCapture';
 import { FunnelUnavailable } from './pages/public/FunnelUnavailable';
 import { Login } from './pages/auth/Login';
 import { Register } from './pages/auth/Register';
+import { Onboarding } from './pages/auth/Onboarding';
+import { AdminLogin } from './pages/auth/AdminLogin';
 import { TenantDashboard } from './pages/dashboard/TenantDashboard';
 import { TenantProducts } from './pages/dashboard/TenantProducts';
 import { TenantLeads } from './pages/dashboard/TenantLeads';
@@ -38,6 +40,12 @@ function App() {
       {/* ===== AUTH ===== */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+
+      {/* ===== ONBOARDING (pós-cadastro do cliente) ===== */}
+      <Route path="/onboarding" element={<Onboarding />} />
+
+      {/* ===== ADMIN LOGIN (equipe) ===== */}
+      <Route path="/admin/login" element={<AdminLogin />} />
 
       {/* ===== DASHBOARD DO TENANT ===== */}
       <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
