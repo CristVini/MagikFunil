@@ -120,12 +120,15 @@ export function Landing() {
                 {ctaText}
                 <ArrowRight size={20} />
               </Link>
-              <Link
-                to={`/f/${tenant?.slug || slug}/quiz`}
-                className="inline-flex items-center gap-2 px-8 py-4 border-2 border-stone-200 text-stone-700 rounded-2xl font-semibold text-lg hover:bg-stone-50 transition-colors"
-              >
-                Como funciona
-              </Link>
+              <button
+  onClick={() => {
+    const el = document.getElementById("como-funciona");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }}
+  className="inline-flex items-center gap-2 px-8 py-4 border-2 border-stone-200 text-stone-700 rounded-2xl font-semibold text-lg hover:bg-stone-50 transition-colors"
+>
+  Como funciona
+</button>
             </div>
           </div>
 
@@ -170,7 +173,7 @@ export function Landing() {
       </main>
 
       {/* How it works */}
-      <section className="relative z-10 py-20 px-6 bg-white/50">
+      <section id="como-funciona" className="relative z-10 py-20 px-6 bg-white/50">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="font-display text-3xl md:text-4xl font-bold text-stone-950 mb-4" style={{ fontFamily: "var(--font-display)" }}>

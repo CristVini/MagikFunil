@@ -3,17 +3,10 @@
 import { useState } from "react";
 import { Brain, Shield, Leaf, BookOpen, X, ArrowRight } from "lucide-react";
 
-// ============================================================
-// Bloco 4.2 — Seção "Ciência" (Prova / Aprofundamento)
-// Blueprint: 3 blocos de princípios + 1 bloco destaque com CTA
-// para abrir as Referências. Fundamental para o diferimento de
-// objeções — quem duvida do resultado tem para onde ir sem sair.
-// ============================================================
-
 interface SciencePrinciple {
   icon: any;
   title: string;
-  lines: string[]; // 2 frases curtas
+  lines: string[];
 }
 
 interface Reference {
@@ -26,31 +19,30 @@ interface Reference {
 const PRINCIPLES: SciencePrinciple[] = [
   {
     icon: Brain,
-    title: "Personalização que faz sentido",
+    title: "Recomendação por perfil",
     lines: [
-      "Cada pessoa tem um ritmo, uma rotina e necessidades diferentes.",
-      "Em vez de uma resposta pronta para todos, o cuidado é pensado para o seu momento.",
+      "Cada pessoa tem um ritmo e necessidades diferentes.",
+      "O quiz identifica sinais da sua rotina antes de recomendar — sem achismo.",
     ],
   },
   {
     icon: Leaf,
-    title: "Nutrientes que o corpo já conhece",
+    title: "Base em evidência",
     lines: [
-      "Trabalhamos com substâncias que o próprio organismo usa naturalmente no dia a dia.",
-      "Vitaminas, minerais e plantas em dose adequada, sempre com orientação.",
+      "Os perfis foram criados com referências científicas (estudos com PMID).",
+      "A recomendação nasce da literatura, não de moda.",
     ],
   },
   {
     icon: Shield,
-    title: "Segurança em primeiro lugar",
+    title: "Segurança e clareza",
     lines: [
-      "Todos os produtos não exigem receita e são manipulados com responsabilidade.",
-      "Nada substitui o acompanhamento — por isso o farmacêutico está sempre à disposição.",
+      "Você recebe um diagnóstico inicial entendível + a base para ele.",
+      "Isso remove a sensação de 'chute' e aumenta a confiança para decidir.",
     ],
   },
 ];
 
-// Referências genéricas, aplicáveis ao nicho (suplementação/bem-estar)
 const REFERENCES: Reference[] = [
   { authors: "Am J Clin Nutr", year: "2011", title: "Catequinas do chá verde e gasto energético", focus: "Apoio ao metabolismo" },
   { authors: "Cochrane Database", year: "2017", title: "Zinco e duração de resfriados", focus: "Defesas naturais" },
@@ -72,13 +64,13 @@ export function ScienceSection({ onExplore }: { onExplore?: () => void }) {
           <div className="text-center mb-14">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500/10 text-amber-600 rounded-full text-sm font-medium mb-4">
               <BookOpen size={14} />
-              Por que confiar
+              Base científica
             </div>
             <h2 className="font-display text-3xl md:text-4xl font-bold text-stone-950 mb-4" style={{ fontFamily: "var(--font-display)" }}>
-              O cuidado por trás do cuidado
+              Por que esse funil entrega mais do que um formulário
             </h2>
             <p className="text-stone-600 max-w-2xl mx-auto">
-              Três princípios simples explicam como pensamos cada recomendação.
+              Ele não pergunta só o que você quer — ele entende o que você precisa antes de recomendar. Isso aumenta a chance de decisão, não só de 'mais um clique'.
             </p>
           </div>
 
@@ -102,10 +94,10 @@ export function ScienceSection({ onExplore }: { onExplore?: () => void }) {
           <div className="bg-gradient-to-br from-stone-900 to-stone-800 rounded-3xl p-10 md:p-14 text-center">
             <BookOpen size={40} className="mx-auto text-amber-500 mb-4" />
             <h3 className="font-display text-2xl md:text-3xl font-bold text-white mb-3" style={{ fontFamily: "var(--font-display)" }}>
-              Quer saber de onde vem tudo isso?
+              Quer ver a base por trás dessas recomendações?
             </h3>
             <p className="text-stone-300 text-lg max-w-xl mx-auto mb-8">
-              Confira as referências que ajudam a embasar cada cuidado que recomendamos.
+              Veja exemplos de estudos e referências que contribuem para montar perfis mais assertivos e seguros.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
@@ -120,7 +112,7 @@ export function ScienceSection({ onExplore }: { onExplore?: () => void }) {
                   onClick={onExplore}
                   className="inline-flex items-center gap-2 px-8 py-4 border-2 border-stone-600 text-stone-200 rounded-2xl font-semibold text-lg hover:bg-stone-700 transition-colors"
                 >
-                  Descobrir meu cuidado
+                  Fazer o quiz agora
                 </button>
               )}
             </div>
@@ -142,7 +134,7 @@ export function ScienceSection({ onExplore }: { onExplore?: () => void }) {
             </div>
             <div className="p-6">
               <p className="text-sm text-stone-500 mb-6">
-                Uma seleção de estudos que ajudam a pensar os cuidados que recomendamos.
+                Uma seleção de estudos usada como referência para construir os perfis e entender os efeitos dos cuidados recomendados.
               </p>
               <ul className="space-y-4">
                 {REFERENCES.map((r, i) => (
