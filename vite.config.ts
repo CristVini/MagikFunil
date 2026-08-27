@@ -21,6 +21,17 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    sourcemap: false,
+    chunkSizeWarningLimit: 900,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Vendors pesados separados em chunks próprios (cache do navegador)
+          react: ['react', 'react-dom', 'react-router-dom'],
+          recharts: ['recharts'],
+          icons: ['lucide-react'],
+        },
+      },
+    },
   },
 });
