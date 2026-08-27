@@ -39,11 +39,11 @@ export const DEFAULT_TENANT_THEME: TenantTheme = {
     primary: '#16A34A',      // green-600
     secondary: '#EC4899',    // pink-500
     accent: '#F59E0B',       // amber-500
-    background: '#FAFAF9',   // stone-50
-    surface: '#FFFFFF',      // white
-    text: '#1C1917',         // stone-950
-    textMuted: '#78716C',    // stone-500
-    border: '#E7E5E4',       // stone-200
+    background: '#0C0A09',   // stone-950 (escuro rico — identidade base)
+    surface: '#1C1917',      // stone-900
+    text: '#FAFAF9',         // stone-50
+    textMuted: '#A8A29E',    // stone-400
+    border: '#292524',       // stone-800
     profile: {
       'descanso': '#6D28D9',
       'energia': '#F59E0B',
