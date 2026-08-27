@@ -1,97 +1,11 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@lib/supabase';
-import { useAuth } from '@hooks/useAuth';
-import { Loader2, Building2, Users, TrendingUp, DollarSign, Activity, MoreVertical, Edit, Trash2, Plus, Search, Filter, Shield, Crown } from 'lucide-react';
+import { Link } from "react-router-dom";
+import { Building2, Users, DollarSign, Crown, TrendingUp, ArrowUpRight } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, AreaChart, Area, Cell } from "recharts";
+import { MOCK_ADMIN_KPIS, MOCK_MRR_BY_MONTH, MOCK_LEADS_BY_TENANT, MOCK_TOP_PRODUCTS_GLOBAL, MOCK_TENANTS } from "./mockData";
 import { formatCurrency } from '@lib/utils';
-import { cn } from '@lib/utils';
-
-interface Tenant {
-  id: string;
-  slug: string;
-  name: string;
-  status: 'active' | 'paused' | 'blocked_billing';
-  template_id: string | null;
-  created_at: string;
-  subscriptions: {
-    id: string;
-    status: string;
-    plans: { name: string; slug: string } | null;
-  } | null;
-}
 
 export function AdminDashboard() {
-  const [stats, setStats] = useState({
-    totalTenants: 0,
-    activeTenants: 0,
-    trialTenants: 0,
-    totalRevenue: 0,
-  });
-  const [recentTenants, setRecentTenants] = useState<Tenant[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadStats();
-  }, []);
-
-  const loadStats = async () => {
-    setLoading(true);
-    try {
-      // Total tenants
-      const { count: total } = await supabase.from('tenants').select('*', { count: 'exact', head: true });
-      
-      // Active tenants
-      const { count: active } = await supabase
-        .from('tenants')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'active');
-
-      // Recent tenants
-      const { data: recent } = await supabase
-        .from('tenants')
-        .select(`
-          *,
-          subscriptions (
-            id,
-            status,
-            plans (name, slug)
-          )
-        `)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      // Revenue (simplified)
-      const { data: subs } = await supabase
-        .from('subscriptions')
-        .select(`
-          status,
-          plans (price_monthly_cents)
-        `)
-        .eq('status', 'active');
-
-      const revenue = (subs || []).reduce((sum: number, s: any) => sum + (s.plans?.price_monthly_cents || 0), 0);
-
-      setStats({
-        totalTenants: total || 0,
-        activeTenants: active || 0,
-        trialTenants: (total || 0) - (active || 0),
-        totalRevenue: revenue,
-      });
-      setRecentTenants(recent || []);
-    } catch (err) {
-      console.error('Erro ao carregar stats:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
-      </div>
-    );
-  }
-
+  // console mock — nada real, tudo visto direto dos mocks
   return (
     <div className="space-y-6" style={{ fontFamily: 'var(--font-sans)' }}>
       {/* Header */}
@@ -99,107 +13,120 @@ export function AdminDashboard() {
         <h1 className="text-3xl font-display font-bold text-stone-950" style={{ fontFamily: 'var(--font-display)' }}>
           Dashboard Admin
         </h1>
-        <p className="text-stone-500 mt-1">Visão geral da plataforma</p>
+        <p className="text-stone-500 mt-1">Visão geral da plataforma MagikFunil</p>
       </div>
 
-      {/* Stats Cards */}
+      {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Tenants', value: stats.totalTenants, icon: Building2, color: 'bg-blue-500/10 text-blue-600' },
-          { label: 'Ativos', value: stats.activeTenants, icon: Activity, color: 'bg-green-500/10 text-green-600' },
-          { label: 'Em Trial', value: stats.trialTenants, icon: Crown, color: 'bg-purple-500/10 text-purple-600' },
-          { label: 'Receita Mensal', value: formatCurrency(stats.totalRevenue / 100), icon: DollarSign, color: 'bg-amber-500/10 text-amber-600' },
+          { label: 'Receita Mensal (MRR)', value: formatCurrency(MOCK_ADMIN_KPIS.mrrCents / 100), icon: DollarSign, color: 'bg-amber-500/10 text-amber-600' },
+          { label: 'Tenants Ativos', value: MOCK_ADMIN_KPIS.activeTenants, icon: Building2, color: 'bg-green-500/10 text-green-600' },
+          { label: 'Em Trial', value: MOCK_ADMIN_KPIS.trialTenants, icon: Crown, color: 'bg-purple-500/10 text-purple-600' },
+          { label: 'Leads totais', value: MOCK_ADMIN_KPIS.totalLeads.toLocaleString('pt-BR'), icon: Users, color: 'bg-blue-500/10 text-blue-600' },
         ].map((stat, i) => (
           <div key={i} className="bg-white rounded-2xl border border-stone-200 p-6 hover:border-stone-300 transition-colors">
-            <div className="flex items-center justify-between">
-              <div className={`p-3 rounded-xl ${stat.color}`}>
-                <stat.icon size={24} />
-              </div>
+            <div className={`p-3 rounded-xl inline-flex ${stat.color}`}>
+              <stat.icon size={22} />
             </div>
-            <div className="mt-4">
-              <p className="text-3xl font-bold text-stone-950">{stat.value}</p>
-              <p className="text-stone-500 text-sm mt-1">{stat.label}</p>
-            </div>
+            <p className="text-3xl font-bold text-stone-950 mt-4">{stat.value}</p>
+            <p className="text-stone-500 text-sm mt-1">{stat.label}</p>
           </div>
         ))}
       </div>
 
-      {/* Charts Placeholder */}
+      {/* Charts */}
       <div className="grid lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-2xl border border-stone-200 p-6">
-          <h3 className="text-lg font-semibold text-stone-950 mb-4">Tenants por Status</h3>
-          <div className="h-64 flex items-center justify-center text-stone-400">
-            <p>Gráfico: Ativos / Pausados / Bloqueados / Trial</p>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-stone-950">MRR ao longo do tempo</h3>
+            <span className="px-2 py-1 bg-green-500/10 text-green-600 rounded-full text-xs font-medium flex items-center gap-1">
+              <TrendingUp size={13} /> +198%
+            </span>
+          </div>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={MOCK_MRR_BY_MONTH}>
+                <defs>
+                  <linearGradient id="mrr" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#F59E0B" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E7E5E4" />
+                <XAxis dataKey="month" tick={{ fill: '#78716C', fontSize: 12 }} />
+                <YAxis tick={{ fill: '#78716C', fontSize: 12 }} tickFormatter={(v) => `R$${(v / 100).toFixed(0)}`} />
+                <Tooltip formatter={(v: any) => formatCurrency(v / 100)} />
+                <Area type="monotone" dataKey="value" stroke="#F59E0B" strokeWidth={2} fill="url(#mrr)" />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
+
         <div className="bg-white rounded-2xl border border-stone-200 p-6">
-          <h3 className="text-lg font-semibold text-stone-950 mb-4">Receita por Mês</h3>
-          <div className="h-64 flex items-center justify-center text-stone-400">
-            <p>Gráfico de linha: MRR ao longo do tempo</p>
+          <h3 className="text-lg font-semibold text-stone-950 mb-4">Leads por Tenant</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={MOCK_LEADS_BY_TENANT} layout="vertical" margin={{ left: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E7E5E4" />
+                <XAxis type="number" tick={{ fill: '#78716C', fontSize: 12 }} />
+                <YAxis type="category" dataKey="tenant" width={140} tick={{ fill: '#57534E', fontSize: 12 }} />
+                <Tooltip />
+                <Bar dataKey="leads" radius={[0, 6, 6, 0]} barSize={20}>
+                  {MOCK_LEADS_BY_TENANT.map((d, i) => (
+                    <Cell key={i} fill={d.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>
 
-      {/* Recent Tenants */}
-      <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
-        <div className="p-6 border-b border-stone-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h2 className="text-lg font-semibold text-stone-950">Tenants Recentes</h2>
-          <a href="/admin/tenants" className="px-4 py-2 bg-stone-950 text-stone-50 rounded-xl font-medium hover:bg-stone-800 transition-colors text-sm">
-            Ver todos
-          </a>
+      {/* Top produtos + Tenants recentes */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-2xl border border-stone-200 p-6">
+          <h3 className="text-lg font-semibold text-stone-950 mb-4">Top Produtos (cliques)</h3>
+          <div className="space-y-3">
+            {MOCK_TOP_PRODUCTS_GLOBAL.map(p => {
+              const max = MOCK_TOP_PRODUCTS_GLOBAL[0].clicks;
+              return (
+                <div key={p.name}>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="font-medium text-stone-700">{p.name}</span>
+                    <span className="text-stone-500">{p.clicks} cliques</span>
+                  </div>
+                  <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-amber-500 rounded-full" style={{ width: `${(p.clicks / max) * 100}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-stone-50 border-b border-stone-200">
-                <th className="px-6 py-3 text-left text-xs font-semibold text-stone-500 uppercase tracking-wider">Tenant</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-stone-500 uppercase tracking-wider">Plano</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-stone-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-stone-500 uppercase tracking-wider">Criado em</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-stone-500 uppercase tracking-wider">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-200">
-              {recentTenants.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-stone-500">Nenhum tenant cadastrado ainda</td>
-                </tr>
-              ) : (
-                recentTenants.map(tenant => (
-                  <tr key={tenant.id} className="hover:bg-stone-50">
-                    <td className="px-6 py-4">
-                      <div>
-                        <p className="font-medium text-stone-950">{tenant.name}</p>
-                        <p className="text-sm text-stone-500">{tenant.slug}.seudominio.com</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="px-2 py-1 bg-stone-100 text-stone-700 rounded-full text-xs font-medium">
-                        {tenant.subscriptions?.plans?.name || 'Sem plano'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        tenant.status === 'active' ? 'bg-green-500/10 text-green-600' :
-                        tenant.status === 'paused' ? 'bg-amber-500/10 text-amber-600' :
-                        'bg-red-500/10 text-red-600'
-                      }`}>
-                        {tenant.status === 'active' ? 'Ativo' : tenant.status === 'paused' ? 'Pausado' : 'Bloqueado'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-stone-500">
-                      {new Date(tenant.created_at).toLocaleDateString('pt-BR')}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button className="p-2 text-stone-400 hover:text-amber-500 hover:bg-amber-50/50 rounded-lg transition-colors">
-                        <MoreVertical size={18} />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+
+        <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+          <div className="p-6 border-b border-stone-200 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-stone-950">Tenants Recentes</h2>
+            <Link to="/admin/tenants" className="px-4 py-2 bg-stone-950 text-stone-50 rounded-xl font-medium hover:bg-stone-800 transition-colors text-sm flex items-center gap-1">
+              Ver todos <ArrowUpRight size={15} />
+            </Link>
+          </div>
+          <div className="divide-y divide-stone-100">
+            {MOCK_TENANTS.slice(0, 5).map(t => (
+              <div key={t.id} className="px-6 py-3.5 flex items-center justify-between hover:bg-stone-50">
+                <div>
+                  <p className="font-medium text-stone-950 text-sm">{t.name}</p>
+                  <p className="text-xs text-stone-500">{t.slug}.seudominio.com</p>
+                </div>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  t.delivery_status === 'active' ? 'bg-green-500/10 text-green-600' :
+                  t.delivery_status === 'paused' ? 'bg-amber-500/10 text-amber-600' : 'bg-red-500/10 text-red-600'
+                }`}>
+                  {t.delivery_status === 'active' ? 'Ativo' : t.delivery_status === 'paused' ? 'Pausado' : 'Bloqueado'}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

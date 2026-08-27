@@ -37,6 +37,7 @@ export default [
         URLSearchParams: 'readonly',
         FileReader: 'readonly',
         alert: 'readonly',
+        confirm: 'readonly',
         process: 'readonly',
         import: 'readonly',
         crypto: 'readonly',

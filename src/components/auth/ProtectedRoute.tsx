@@ -30,23 +30,3 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   return <>{children}</>;
 }
-
-interface AdminRouteProps {
-  children: React.ReactNode;
-}
-
-export function AdminRoute({ children }: AdminRouteProps) {
-  const { user } = useAuth();
-  
-  // TODO: Verificar role de admin (pode vir no metadata do usuário ou tabela separada)
-  // Por enquanto, permite qualquer usuário logado acessar /admin
-  // Em produção, verificar: user?.user_metadata?.role === 'admin'
-  
-  const isAdmin = user?.user_metadata?.role === 'admin' || user?.email?.includes('@admin.');
-  
-  if (!isAdmin) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  return <>{children}</>;
-}
