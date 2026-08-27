@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Users, HelpCircle, Package, ChevronRight, Plus, ArrowLeft, MessageCircleQuestion, ClipboardList, X } from "lucide-react";
+import { FileText, Users, HelpCircle, Package, ChevronRight, Plus, ArrowLeft, MessageCircleQuestion, ClipboardList, X, Upload, AlertTriangle, CheckCircle2, Copy } from "lucide-react";
 import { MOCK_TEMPLATES, AdminTemplate } from "./mockData";
+import { validarFunil, funilParaTemplate, FUNIL_EXEMPLO } from "@lib/funilImport";
 import { cn } from "@lib/utils";
 
 // Perguntas do quiz (mock representativo do template de encapsulados)
@@ -238,10 +239,116 @@ function CreateTemplateModal({ onClose, onCreate }: { onClose: () => void; onCre
   );
 }
 
+// Modal de importar funil (colar JSON → validar → vira template)
+function ImportFunilModal({ onClose, onImport }: { onClose: () => void; onImport: (t: AdminTemplate) => void }) {
+  const [raw, setRaw] = useState("");
+  const [result, setResult] = useState<{ valid: boolean; errors: string[]; warnings: string[] } | null>(null);
+  const [parsed, setParsed] = useState<any>(null);
+
+  const handleValidate = () => {
+    if (!raw.trim()) { setResult({ valid: false, errors: ["Cole o JSON do funil."], warnings: [] }); return; }
+    try {
+      const obj = JSON.parse(raw);
+      const v = validarFunil(obj);
+      setResult(v);
+      setParsed(v.valid ? obj : null);
+    } catch (e: any) {
+      setResult({ valid: false, errors: [`JSON inválido: ${e.message}`], warnings: [] });
+      setParsed(null);
+    }
+  };
+
+  const handleImport = () => {
+    if (!parsed) return;
+    const tpl = funilParaTemplate(parsed);
+    onImport(tpl);
+    onClose();
+  };
+
+  const fillExample = () => { setRaw(FUNIL_EXEMPLO); setResult(null); setParsed(null); };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-stone-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-2xl w-full p-6 max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-xl font-semibold text-stone-950 flex items-center gap-2">
+              <Upload size={20} className="text-amber-500" /> Importar Funil
+            </h2>
+            <p className="text-sm text-stone-500 mt-1">Cole o JSON do funil — ele vira um Template pronto para os tenants.</p>
+          </div>
+          <button onClick={onClose} className="p-2 text-stone-400 hover:text-stone-600"><X size={20} /></button>
+        </div>
+
+        <div className="flex justify-end mb-2">
+          <button onClick={fillExample} className="text-sm text-amber-600 hover:text-amber-500 font-medium flex items-center gap-1">
+            <Copy size={14} /> Carregar exemplo
+          </button>
+        </div>
+
+        <textarea
+          value={raw}
+          onChange={e => setRaw(e.target.value)}
+          placeholder='{"meta": {"nome": "...", "slug": "...", "nicho": "..."}, "quiz": [...], "perfis": [...], "produtos": [...]}'
+          className="w-full h-64 px-4 py-3 bg-stone-900 text-stone-100 font-mono text-xs rounded-xl border border-stone-700 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
+        />
+
+        {result && (
+          <div className="mt-4 space-y-2 max-h-40 overflow-y-auto pr-1">
+            {result.valid && (
+              <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl text-green-800 text-sm">
+                <CheckCircle2 size={16} /> Funil válido! Pronto para importar.
+              </div>
+            )}
+            {result.errors.map((e, i) => (
+              <div key={i} className="flex items-start gap-2 p-2.5 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                <AlertTriangle size={14} className="shrink-0 mt-0.5" /> {e}
+              </div>
+            ))}
+            {result.warnings.map((w, i) => (
+              <div key={i} className="flex items-start gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm">
+                <AlertTriangle size={14} className="shrink-0 mt-0.5" /> {w}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex justify-end gap-3 mt-5">
+          <button onClick={onClose} className="px-6 py-3 bg-stone-100 text-stone-700 rounded-xl font-medium hover:bg-stone-200">Cancelar</button>
+          <button onClick={handleValidate} className="px-6 py-3 bg-stone-950 text-stone-50 rounded-xl font-medium hover:bg-stone-800 flex items-center gap-2">
+            <AlertTriangle size={16} /> Validar
+          </button>
+          <button onClick={handleImport} disabled={!result?.valid}
+            className="px-6 py-3 bg-amber-500 text-stone-950 rounded-xl font-semibold hover:bg-amber-400 disabled:opacity-50 flex items-center gap-2">
+            <Upload size={16} /> Importar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AdminTemplates() {
-  const [templates, setTemplates] = useState<AdminTemplate[]>(MOCK_TEMPLATES);
+  const [templates, setTemplates] = useState<AdminTemplate[]>(() => {
+    try {
+      const saved = window.localStorage.getItem("magikfunil-templates");
+      return saved ? [...MOCK_TEMPLATES, ...(JSON.parse(saved) as AdminTemplate[])] : MOCK_TEMPLATES;
+    } catch {
+      return MOCK_TEMPLATES;
+    }
+  });
   const [selected, setSelected] = useState<AdminTemplate | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+
+  const MOCK_IDS = new Set(MOCK_TEMPLATES.map(t => t.id));
+
+  const persist = (list: AdminTemplate[]) => {
+    try {
+      const custom = list.filter(t => !MOCK_IDS.has(t.id));
+      window.localStorage.setItem("magikfunil-templates", JSON.stringify(custom));
+    } catch {}
+  };
 
   const handleCreate = (t: { name: string; slug: string; niche: string }) => {
     const novoTemplate: AdminTemplate = {
@@ -256,30 +363,38 @@ export function AdminTemplates() {
       product_count: 0,
       questions: [],
     };
-    setTemplates(prev => [...prev, novoTemplate]);
+    setTemplates(prev => { const next = [...prev, novoTemplate]; persist(next); return next; });
+  };
+
+  const handleImport = (tpl: AdminTemplate) => {
+    setTemplates(prev => { const next = [...prev, tpl]; persist(next); return next; });
   };
 
   const handleAddItem = (templateId: string, tab: "perfis" | "quiz" | "catalogo", name: string, extra?: Record<string, any>) => {
-    setTemplates(prev => prev.map(t => {
-      if (t.id !== templateId) return t;
-      const updated: AdminTemplate = { ...t, questions: t.questions ?? MOCK_QUESTIONS.slice(0, t.question_count) };
-      if (tab === "perfis") {
-        updated.profiles = [...updated.profiles, {
-          id: `p-${Date.now()}`,
-          name,
-          archetype: extra?.extra || "Novo arquétipo",
-          color: "#8B5CF6",
-          scientific_basis: "Base científica a ser definida",
-          products: [],
-        }];
-      } else if (tab === "quiz") {
-        updated.questions = [...(updated.questions ?? []), name];
-        updated.question_count += 1;
-      } else {
-        updated.product_count += 1;
-      }
-      return updated;
-    }));
+    setTemplates(prev => {
+      const next = prev.map(t => {
+        if (t.id !== templateId) return t;
+        const updated: AdminTemplate = { ...t, questions: t.questions ?? MOCK_QUESTIONS.slice(0, t.question_count) };
+        if (tab === "perfis") {
+          updated.profiles = [...updated.profiles, {
+            id: `p-${Date.now()}`,
+            name,
+            archetype: extra?.extra || "Novo arquétipo",
+            color: "#8B5CF6",
+            scientific_basis: "Base científica a ser definida",
+            products: [],
+          }];
+        } else if (tab === "quiz") {
+          updated.questions = [...(updated.questions ?? []), name];
+          updated.question_count += 1;
+        } else {
+          updated.product_count += 1;
+        }
+        return updated;
+      });
+      persist(next);
+      return next;
+    });
   };
 
   if (selected) {
@@ -301,9 +416,14 @@ export function AdminTemplates() {
           </h1>
           <p className="text-stone-500 mt-1">O cérebro do produto: perfis, quiz e catálogo que vendemos</p>
         </div>
-        <button onClick={() => setShowCreate(true)} className="px-4 py-2 bg-stone-950 text-stone-50 rounded-xl font-medium hover:bg-stone-800 transition-colors flex items-center gap-2 self-start">
-          <Plus size={18} /> Novo template
-        </button>
+        <div className="flex gap-3 self-start">
+          <button onClick={() => setShowImport(true)} className="px-4 py-2 bg-stone-100 text-stone-700 rounded-xl font-medium hover:bg-stone-200 transition-colors flex items-center gap-2">
+            <Upload size={18} /> Importar funil
+          </button>
+          <button onClick={() => setShowCreate(true)} className="px-4 py-2 bg-stone-950 text-stone-50 rounded-xl font-medium hover:bg-stone-800 transition-colors flex items-center gap-2">
+            <Plus size={18} /> Novo template
+          </button>
+        </div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-5">
@@ -331,6 +451,7 @@ export function AdminTemplates() {
       </div>
 
       {showCreate && <CreateTemplateModal onClose={() => setShowCreate(false)} onCreate={handleCreate} />}
+      {showImport && <ImportFunilModal onClose={() => setShowImport(false)} onImport={handleImport} />}
     </div>
   );
 }

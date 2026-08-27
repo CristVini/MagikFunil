@@ -86,6 +86,7 @@ export interface AdminTemplate {
   question_count: number;
   product_count: number;
   questions?: string[];
+  catalog?: { id: string; nome: string; categoria: string; descricao: string; ativos?: Record<string, string> }[];
 }
 
 export const MOCK_TEMPLATES: AdminTemplate[] = [
