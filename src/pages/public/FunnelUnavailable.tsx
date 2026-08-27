@@ -233,7 +233,7 @@ export function FunnelUnavailable() {
 
             {/* Footer Info */}
             <div className="mt-10 pt-8 border-t border-stone-200">
-              <div className="grid grid-cols-3 gap-4 text-center">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-center">
                 <div className="p-4 bg-stone-50 rounded-xl">
                   <Shield size={24} className="text-amber-500 mx-auto mb-2" />
                   <p className="text-xs text-stone-500">Seguro e privado</p>
