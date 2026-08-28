@@ -164,6 +164,20 @@ export const MOCK_PLAN = {
   allowsKits: true,
 };
 
+// Plano Enterprise — usado para testar o recurso premium de promoção.
+export const MOCK_PLAN_ENTERPRISE = {
+  name: "Enterprise",
+  price_monthly_cents: 39700,
+  max_products: 99,
+  max_leads_per_month: 100000,
+  custom_domain: true,
+  allowsPromo: true, // recurso premium ativo
+  allowsKits: true,
+};
+
+// Seletor de planos disponíveis na demo (trocar entre Pro e Enterprise)
+export const MOCK_PLANS = [MOCK_PLAN, MOCK_PLAN_ENTERPRISE];
+
 export const MOCK_SUBSCRIPTION = {
   status: "active",
   current_period_end: new Date(now + 12 * DAY).toISOString(),

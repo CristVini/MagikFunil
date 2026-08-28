@@ -1,20 +1,21 @@
 import { useMemo, useState } from "react";
-import { Link2, ExternalLink, Package, ShieldAlert, CheckCircle2, Loader2, Lock } from "lucide-react";
-import { MOCK_PRODUCTS, MOCK_PLAN } from "./mockData";
+import { Link2, ExternalLink, Package, ShieldAlert, CheckCircle2, Loader2, Lock, Crown } from "lucide-react";
+import { MOCK_PRODUCTS, MOCK_PLANS, MOCK_PLAN } from "./mockData";
 
 // Face 2.3 — Produtos: o cliente ativa itens do catálogo pré-criado e
 // cola o link de venda de cada um, agrupados pelo protocolo do funil
 // (2 produtos + 1 kit por perfil). Limite é o max_products do plano.
 export function TenantProducts() {
   const [products, setProducts] = useState(MOCK_PRODUCTS);
+  const [plan, setPlan] = useState(MOCK_PLAN); // demo: trocar pra Enterprise destrava a promo
   const [search, setSearch] = useState("");
   const [savingUrl, setSavingUrl] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
+  const maxProducts = plan.max_products;
   const activeCount = products.filter(p => p.enabled).length;
-  const maxProducts = MOCK_PLAN.max_products;
   const atLimit = activeCount >= maxProducts;
-  const enabledPromo = MOCK_PLAN.allowsPromo; // recurso premium: promoção exclusiva do Enterprise
+  const enabledPromo = plan.allowsPromo; // recurso premium: promoção exclusiva do Enterprise
 
   // Agrupa por perfil preservando a ordem do mock (protocolo do funil)
   const groups = useMemo(() => {
@@ -45,7 +46,7 @@ export function TenantProducts() {
     if (!target) return;
     // Não pode ativar além do limite do plano
     if (!target.enabled && atLimit) {
-      showToast(`Seu plano ${MOCK_PLAN.name} permite até ${maxProducts} produtos ativos. Faça upgrade para ativar mais.`);
+      showToast(`Seu plano ${plan.name} permite até ${maxProducts} produtos ativos. Faça upgrade para ativar mais.`);
       return;
     }
     setProducts(prev => prev.map(p => p.id === id ? { ...p, enabled: !p.enabled } : p));
@@ -88,6 +89,29 @@ export function TenantProducts() {
           <p className="text-stone-500 mt-1">O protocolo que o quiz recomenda — ative cada item e cole o link de venda</p>
         </div>
 
+        {/* Seletor de plano (demo) — trocar pra Enterprise destrava a promoção */}
+        <div className="flex items-center gap-2 bg-white rounded-2xl border border-stone-200 p-1.5 shadow-sm">
+          {MOCK_PLANS.map((p) => {
+            const isActive = plan.name === p.name;
+            return (
+              <button
+                key={p.name}
+                onClick={() => setPlan(p)}
+                className={`px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 transition-all ${
+                  isActive
+                    ? p.name === "Enterprise"
+                      ? "bg-stone-950 text-amber-400 shadow"
+                      : "bg-amber-500 text-white shadow"
+                    : "text-stone-500 hover:bg-stone-100"
+                }`}
+              >
+                {p.name === "Enterprise" && <Crown size={14} />}
+                {p.name}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Indicador de limite do plano */}
         <div className="px-4 py-3 bg-white rounded-2xl border border-stone-200 flex items-center gap-3">
           <Package size={20} className="text-amber-500" />
@@ -110,7 +134,7 @@ export function TenantProducts() {
         <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl">
           <ShieldAlert size={20} className="text-red-600 mt-0.5" />
           <div className="flex-1">
-            <p className="font-medium text-red-900">Você atingiu o limite de itens ativos do plano {MOCK_PLAN.name}</p>
+            <p className="font-medium text-red-900">Você atingiu o limite de itens ativos do plano {plan.name}</p>
             <p className="text-sm text-red-700">Desative um item ou faça upgrade para ativar mais do protocolo.</p>
           </div>
           <button className="shrink-0 px-3 py-1.5 bg-stone-950 text-stone-50 rounded-lg text-sm font-medium hover:bg-stone-800 transition-colors">
