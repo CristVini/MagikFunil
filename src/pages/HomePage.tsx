@@ -58,7 +58,7 @@ export function HomePage() {
 
       {/* HERO */}
       <header className="max-w-3xl mx-auto px-6 pt-20 md:pt-28 pb-16 text-center animate-slide-up">
-        <p className="text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-orange-400 uppercase tracking-[0.2em] mb-5">
+        <p className="text-sm font-bold text-amber-300 uppercase tracking-[0.2em] mb-5">
           Funis que transformam visitantes em clientes
         </p>
         <h1 className="font-display text-4xl md:text-6xl font-bold tracking-tight leading-[1.05] mb-6 text-stone-50">
@@ -88,7 +88,7 @@ export function HomePage() {
           <p className="text-amber-300 text-sm font-bold uppercase tracking-widest mb-3">Em uma frase</p>
           <p className="font-display text-2xl md:text-3xl font-medium leading-snug text-stone-50 max-w-3xl">
             Um funil inteligente vende seu catálogo do mesmo jeito que o melhor vendedor:{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-orange-400">entendendo o cliente antes de recomendar.</span>
+            <span className="text-amber-300 font-medium">entendendo o cliente antes de recomendar.</span>
           </p>
         </div>
       </section>
@@ -98,13 +98,13 @@ export function HomePage() {
         <h2 className="font-display text-2xl md:text-3xl font-bold tracking-tight text-stone-50 mb-8">O que muda no seu resultado</h2>
         <div className="grid md:grid-cols-3 gap-5">
           {[
-            { v: "Mais conversão", d: "Quem chega e ia embora agora recebe uma recomendação e uma ação. Menos abandono, mais decisão.", c: "from-amber-400/20 to-transparent", a: "0s" },
-            { v: "Cliente que entendeu o valor", d: "Ele escolhe o produto porque foi a escolha certa pra ele — não porque foi empurrado.", c: "from-emerald-400/20 to-transparent", a: "0.15s" },
-            { v: "Decisão por dados", d: "Você enxerga o produto mais clicado, o perfil mais comum e onde a venda trava.", c: "from-violet-400/20 to-transparent", a: "0.3s" },
+            { v: "Mais conversão", d: "Quem chega e ia embora agora recebe uma recomendação e uma ação. Menos abandono, mais decisão.", b: "border-amber-400/30", a: "0s" },
+            { v: "Cliente que entendeu o valor", d: "Ele escolhe o produto porque foi a escolha certa pra ele — não porque foi empurrado.", b: "border-emerald-400/30", a: "0.15s" },
+            { v: "Decisão por dados", d: "Você enxerga o produto mais clicado, o perfil mais comum e onde a venda trava.", b: "border-violet-400/30", a: "0.3s" },
           ].map((b, i) => (
-            <div key={i} className="p-6 rounded-2xl bg-gradient-to-br border border-white/10 hover:border-white/25 hover:-translate-y-1 transition-all duration-300" style={{ animationDelay: b.a }}>
+            <div key={i} style={{ animationDelay: b.a }} className={`p-6 rounded-2xl border bg-white/5 hover:bg-white/10 hover:-translate-y-1 transition-all duration-300 ${b.b}`}>
               <p className="font-bold text-stone-50 mb-2 text-lg">{b.v}</p>
-              <p className="text-sm text-stone-400 leading-relaxed">{b.d}</p>
+              <p className="text-sm text-stone-300 leading-relaxed">{b.d}</p>
             </div>
           ))}
         </div>
@@ -121,7 +121,7 @@ export function HomePage() {
             </div>
           ))}
         </div>
-        <p className="text-sm text-stone-500 mt-4">
+        <p className="text-sm text-stone-400 mt-4">
           Cada um com um funil sob medida. Nós montamos o quiz e as recomendações; você só cola os links pro seu WhatsApp ou loja.
         </p>
       </section>
@@ -137,7 +137,7 @@ export function HomePage() {
           {/* Basic */}
           <div className="p-7 rounded-3xl bg-white/5 border border-white/10 flex flex-col hover:border-white/25 hover:-translate-y-1 transition-all duration-300 animate-slide-up">
             <h3 className="font-bold text-stone-100">Basic</h3>
-            <p className="text-3xl font-bold mt-2 tracking-tight text-stone-50">R$ 278,90<span className="text-base font-normal text-stone-500">/mês</span></p>
+            <p className="text-3xl font-bold mt-2 tracking-tight text-stone-50">R$ 278,90<span className="text-base font-normal text-stone-400">/mês</span></p>
             <p className="text-sm text-stone-400 mt-1 mb-6">{PLANS[0].tagline}</p>
             <ul className="space-y-3 mb-8 flex-1">
               {PLANS[0].features.map((f, i) => (
@@ -196,18 +196,18 @@ export function HomePage() {
       <section className="max-w-5xl mx-auto px-6 py-12 animate-fade-in">
         <h2 className="font-display text-2xl md:text-3xl font-bold tracking-tight text-stone-50 mb-8">Por que os clientes ficam</h2>
         <div className="grid md:grid-cols-2 gap-5">
-          <div className="p-6 rounded-2xl bg-gradient-to-br from-white/10 to-white/5 border border-white/10 flex items-start gap-4 hover:border-white/25 transition-colors">
+          <div className="p-6 rounded-2xl bg-white/5 border border-white/10 flex items-start gap-4 hover:bg-white/10 transition-colors">
             <div className="w-10 h-10 rounded-xl bg-emerald-500/20 grid place-items-center shrink-0"><ShieldCheck size={20} className="text-emerald-400" /></div>
             <div>
               <p className="font-bold text-stone-50">Credibilidade na recomendação</p>
-              <p className="text-sm text-stone-400 mt-1">Recomendações com base e referências — essencial onde a confiança decide a compra.</p>
+              <p className="text-sm text-stone-300 mt-1">Recomendações com base e referências — essencial onde a confiança decide a compra.</p>
             </div>
           </div>
-          <div className="p-6 rounded-2xl bg-gradient-to-br from-white/10 to-white/5 border border-white/10 flex items-start gap-4 hover:border-white/25 transition-colors">
+          <div className="p-6 rounded-2xl bg-white/5 border border-white/10 flex items-start gap-4 hover:bg-white/10 transition-colors">
             <div className="w-10 h-10 rounded-xl bg-amber-500/20 grid place-items-center shrink-0"><TrendingUp size={20} className="text-amber-400" /></div>
             <div>
               <p className="font-bold text-stone-50">Sua marca, do início ao fim</p>
-              <p className="text-sm text-stone-400 mt-1">Funil white-label no seu domínio. Ninguém vê a plataforma, só a sua marca.</p>
+              <p className="text-sm text-stone-300 mt-1">Funil white-label no seu domínio. Ninguém vê a plataforma, só a sua marca.</p>
             </div>
           </div>
         </div>
@@ -216,7 +216,7 @@ export function HomePage() {
       {/* CTA FINAL */}
       <section className="max-w-3xl mx-auto px-6 py-16 text-center animate-slide-up">
         <h2 className="font-display text-3xl md:text-4xl font-bold tracking-tight text-stone-50 mb-4">
-          Quer fechar mais venda com o <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-orange-400">tráfego que já tem?</span>
+          Quer fechar mais venda com o <span className="text-amber-300">tráfego que já tem?</span>
         </h2>
         <p className="text-stone-400 text-lg mb-8">Monte seu funil em minutos. Trial de 30 dias.</p>
         <Link to="/register" className="px-9 py-4 bg-gradient-to-r from-amber-400 to-orange-500 text-stone-950 rounded-2xl font-bold hover:shadow-xl hover:shadow-amber-500/40 hover:-translate-y-1 transition-all inline-flex items-center gap-2 group">
