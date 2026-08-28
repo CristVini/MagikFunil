@@ -35,24 +35,53 @@ export interface TenantMockProduct {
   name: string;
   category: string;
   description: string;
+  is_kit: boolean;
   enabled: boolean;
   redirect_url: string;
   clicks: number;
   profile: string;
   profileLabel: string;
+  // Recursos premium (feature: "Exibir promoção" — exclusiva do Enterprise)
+  promo_price_cents: number | null;
+  show_promo: boolean;
 }
 
+// Espelha o protocolo do funil (MOCK_PRODUCTS_BY_PROFILE): cada perfil tem
+// 2 produtos + 1 kit que os combina. O tenant edita o link de cada item, e
+// o kit reaproveita o mesmo redirect_url — sem campo de preço (MVP).
 export const MOCK_PRODUCTS: TenantMockProduct[] = [
-  { id: "prod-sono", name: "Kit Sono Tranquilo", category: "suplemento_oral", description: "Para acalmar a mente e entrar no ritmo certo do sono.", enabled: true, redirect_url: "https://wa.me/5511999990000?text=Kit%20Sono", clicks: 148, profile: "descanso", profileLabel: "Modo Descansar" },
-  { id: "prod-magnesio", name: "Magnésio Relax", category: "suplemento_oral", description: "Aliado do descanso e do relaxamento muscular.", enabled: true, redirect_url: "https://wa.me/5511999990000?text=Magn%C3%A9sio", clicks: 96, profile: "descanso", profileLabel: "Modo Descansar" },
-  { id: "prod-imuno", name: "Defesas do Corpo", category: "suplemento_oral", description: "Vitaminas e minerais para reforçar as defesas naturais.", enabled: true, redirect_url: "https://wa.me/5511999990000?text=Defesas", clicks: 82, profile: "imunidade", profileLabel: "Modo Protegido" },
-  { id: "prod-colageno", name: "Colágeno + Brilho", category: "suplemento_oral", description: "Colágeno com vitamina C para pele firme e luminosa.", enabled: true, redirect_url: "https://wa.me/5511999990000?text=Col%C3%A1geno", clicks: 71, profile: "beleza", profileLabel: "Modo Brilho" },
-  { id: "prod-intestino", name: "Barriga Leve", category: "suplemento_oral", description: "Probióticos e enzimas para uma digestão confortável.", enabled: true, redirect_url: "https://wa.me/5511999990000?text=Barriga", clicks: 58, profile: "digestao", profileLabel: "Modo Leve" },
-  { id: "prod-energia", name: "Energia do Dia", category: "suplemento_oral", description: "Nutrientes que transformam alimento em energia.", enabled: false, redirect_url: "", clicks: 0, profile: "energia", profileLabel: "Modo Energizar" },
-  { id: "prod-creatina", name: "Creatina Força", category: "suplemento_oral", description: "Ajuda na força e na recuperação muscular.", enabled: false, redirect_url: "", clicks: 0, profile: "performance", profileLabel: "Modo Força" },
-  { id: "prod-termogenico", name: "Metabolismo em Dia", category: "suplemento_oral", description: "Apoio natural para o controle de peso.", enabled: false, redirect_url: "", clicks: 0, profile: "emagrecimento", profileLabel: "Modo Metabolismo Ativo" },
-  { id: "prod-serum", name: "Sérum de Vitamina C", category: "dermocosmetico", description: "Sérum leve com vitamina C para o rosto.", enabled: false, redirect_url: "", clicks: 0, profile: "beleza", profileLabel: "Modo Brilho" },
-  { id: "prod-equilibrio", name: "Equilíbrio do Dia", category: "suplemento_oral", description: "Ervas e nutrientes para lidar melhor com o estresse.", enabled: false, redirect_url: "", clicks: 0, profile: "equilibrio", profileLabel: "Modo Equilíbrio" },
+  // Modo Descansar
+  { id: "prod-sono", name: "Kit Sono Tranquilo", category: "suplemento_oral", description: "Para ajudar a mente a desacelerar e o corpo a entrar no ritmo certo do sono.", is_kit: false, enabled: true, redirect_url: "https://wa.me/5511999990000?text=Kit%20Sono", promo_price_cents: null, show_promo: false, clicks: 148, profile: "descanso", profileLabel: "Modo Descansar" },
+  { id: "prod-magnesio", name: "Magnésio Relax", category: "suplemento_oral", description: "O clássico aliado do descanso. Ajuda a relaxar a musculatura e o sistema nervoso.", is_kit: false, enabled: true, redirect_url: "https://wa.me/5511999990000?text=Magn%C3%A9sio", promo_price_cents: null, show_promo: false, clicks: 96, profile: "descanso", profileLabel: "Modo Descansar" },
+  { id: "kit-noite", name: "Kit Noite Reparadora", category: "kit_mensal", description: "Os dois anteriores em um protocolo de 30 dias para noites mais profundas.", is_kit: true, enabled: true, redirect_url: "https://wa.me/5511999990000?text=Kit%20Noite", promo_price_cents: 8990, show_promo: true, clicks: 51, profile: "descanso", profileLabel: "Modo Descansar" },
+  // Modo Protegido
+  { id: "prod-imuno", name: "Defesas do Corpo", category: "suplemento_oral", description: "Vitaminas e minerais que fortalecem as defesas naturais do corpo.", is_kit: false, enabled: true, redirect_url: "https://wa.me/5511999990000?text=Defesas", promo_price_cents: 13490, show_promo: true, clicks: 82, profile: "imunidade", profileLabel: "Modo Protegido" },
+  { id: "prod-zinco", name: "Proteção Diária", category: "suplemento_oral", description: "Zinco e vitaminas que ajudam na recuperação e nas mudanças de estação.", is_kit: false, enabled: false, redirect_url: "https://wa.me/5511999990000?text=Prote%C3%A7%C3%A3o", promo_price_cents: null, show_promo: false, clicks: 39, profile: "imunidade", profileLabel: "Modo Protegido" },
+  { id: "kit-imuno", name: "Kit Proteção Total", category: "kit_mensal", description: "O reforço completo para sentir o corpo mais forte e protegido o mês inteiro.", is_kit: true, enabled: false, redirect_url: "https://wa.me/5511999990000?text=Kit%20Prote%C3%A7%C3%A3o", promo_price_cents: null, show_promo: false, clicks: 22, profile: "imunidade", profileLabel: "Modo Protegido" },
+  // Modo Brilho
+  { id: "prod-colageno", name: "Colágeno + Brilho", category: "suplemento_oral", description: "Colágeno com vitamina C para pele firme e luminosa.", is_kit: false, enabled: true, redirect_url: "https://wa.me/5511999990000?text=Col%C3%A1geno", promo_price_cents: null, show_promo: false, clicks: 71, profile: "beleza", profileLabel: "Modo Brilho" },
+  { id: "prod-serum", name: "Sérum de Vitamina C", category: "dermocosmetico", description: "Sérum leve com vitamina C para o rosto.", is_kit: false, enabled: false, redirect_url: "https://wa.me/5511999990000?text=S%C3%A9rum", promo_price_cents: null, show_promo: false, clicks: 33, profile: "beleza", profileLabel: "Modo Brilho" },
+  { id: "kit-beleza", name: "Kit Pele de Dentro pra Fora", category: "kit_mensal", description: "Colágeno por dentro e o sérum por fora, para um brilho de verdade.", is_kit: true, enabled: false, redirect_url: "", promo_price_cents: null, show_promo: false, clicks: 0, profile: "beleza", profileLabel: "Modo Brilho" },
+  // Modo Leve
+  { id: "prod-intestino", name: "Barriga Leve", category: "suplemento_oral", description: "Probióticos e enzimas para uma digestão confortável.", is_kit: false, enabled: true, redirect_url: "https://wa.me/5511999990000?text=Barriga", promo_price_cents: null, show_promo: false, clicks: 58, profile: "digestao", profileLabel: "Modo Leve" },
+  { id: "prod-prebiotico", name: "Flora em Equilíbrio", category: "suplemento_oral", description: "Prebióticos e fibras que alimentam as bactérias boas do intestino.", is_kit: false, enabled: false, redirect_url: "https://wa.me/5511999990000?text=Flora", promo_price_cents: null, show_promo: false, clicks: 27, profile: "digestao", profileLabel: "Modo Leve" },
+  { id: "kit-digestao", name: "Kit Leve & Equilibrado", category: "kit_mensal", description: "A dupla perfeita para dizer adeus ao inchaço e curtir as refeições sem desconforto.", is_kit: true, enabled: false, redirect_url: "", promo_price_cents: null, show_promo: false, clicks: 0, profile: "digestao", profileLabel: "Modo Leve" },
+  // Modo Energizar
+  { id: "prod-energia", name: "Energia do Dia", category: "suplemento_oral", description: "Nutrientes que transformam alimento em energia.", is_kit: false, enabled: false, redirect_url: "", promo_price_cents: null, show_promo: false, clicks: 0, profile: "energia", profileLabel: "Modo Energizar" },
+  { id: "prod-rodiola", name: "Disposição Natural", category: "suplemento_oral", description: "Uma ajuda natural contra o cansaço físico e mental.", is_kit: false, enabled: false, redirect_url: "https://wa.me/5511999990000?text=Disposi%C3%A7%C3%A3o", promo_price_cents: null, show_promo: false, clicks: 19, profile: "energia", profileLabel: "Modo Energizar" },
+  { id: "kit-dia", name: "Kit Dia Cheio", category: "kit_mensal", description: "Os dois maiores aliados da disposição em um único protocolo.", is_kit: true, enabled: false, redirect_url: "", promo_price_cents: null, show_promo: false, clicks: 0, profile: "energia", profileLabel: "Modo Energizar" },
+  // Modo Equilíbrio
+  { id: "prod-equilibrio", name: "Equilíbrio do Dia", category: "suplemento_oral", description: "Ervas e nutrientes para lidar melhor com o estresse.", is_kit: false, enabled: false, redirect_url: "", promo_price_cents: null, show_promo: false, clicks: 0, profile: "equilibrio", profileLabel: "Modo Equilíbrio" },
+  { id: "prod-humor", name: "Bom Humor Natural", category: "suplemento_oral", description: "Magnésio e vitaminas para manter o humor mais estável.", is_kit: false, enabled: false, redirect_url: "", promo_price_cents: null, show_promo: false, clicks: 0, profile: "equilibrio", profileLabel: "Modo Equilíbrio" },
+  { id: "kit-equilibrio", name: "Kit Centro em Equilíbrio", category: "kit_mensal", description: "Para encontrar estabilidade e leveza mesmo nos dias intensos.", is_kit: true, enabled: false, redirect_url: "", promo_price_cents: null, show_promo: false, clicks: 0, profile: "equilibrio", profileLabel: "Modo Equilíbrio" },
+  // Modo Força
+  { id: "prod-creatina", name: "Creatina Força", category: "suplemento_oral", description: "Ajuda na força e na recuperação muscular.", is_kit: false, enabled: false, redirect_url: "", promo_price_cents: null, show_promo: false, clicks: 0, profile: "performance", profileLabel: "Modo Força" },
+  { id: "prod-whey", name: "Recuperação Muscular", category: "suplemento_oral", description: "Proteína e aminoácidos para o músculo se recuperar após o treino.", is_kit: false, enabled: false, redirect_url: "", promo_price_cents: null, show_promo: false, clicks: 0, profile: "performance", profileLabel: "Modo Força" },
+  { id: "kit-performance", name: "Kit Treino Completo", category: "kit_mensal", description: "Creatina + recuperação juntas para evoluir no treino.", is_kit: true, enabled: false, redirect_url: "", promo_price_cents: null, show_promo: false, clicks: 0, profile: "performance", profileLabel: "Modo Força" },
+  // Modo Metabolismo Ativo
+  { id: "prod-termogenico", name: "Metabolismo em Dia", category: "suplemento_oral", description: "Apoio natural para o controle de peso.", is_kit: false, enabled: false, redirect_url: "", promo_price_cents: null, show_promo: false, clicks: 0, profile: "emagrecimento", profileLabel: "Modo Metabolismo Ativo" },
+  { id: "prod-saciedade", name: "Controle da Fome", category: "suplemento_oral", description: "Fibras que dão saciedade e ajudam a segurar a fome.", is_kit: false, enabled: false, redirect_url: "", promo_price_cents: null, show_promo: false, clicks: 0, profile: "emagrecimento", profileLabel: "Modo Metabolismo Ativo" },
+  { id: "kit-emagrece", name: "Kit Metabolismo Ativo", category: "kit_mensal", description: "A dupla que apoia o corpo a trabalhar a favor da dieta.", is_kit: true, enabled: false, redirect_url: "", promo_price_cents: null, show_promo: false, clicks: 0, profile: "emagrecimento", profileLabel: "Modo Metabolismo Ativo" },
 ];
 
 // ============================================================
@@ -131,6 +160,8 @@ export const MOCK_PLAN = {
   max_products: 6,
   max_leads_per_month: 3000,
   custom_domain: false,
+  allowsPromo: false, // recurso premium: promoção exclusiva do Enterprise
+  allowsKits: true,
 };
 
 export const MOCK_SUBSCRIPTION = {

@@ -230,8 +230,14 @@ export function Result() {
                         })}
                         className="space-y-1.5 text-left group/step"
                       >
-                        <h5 className="text-[11px] font-bold uppercase tracking-widest" style={{ color: "var(--theme-dark-text)" }}>
+                        <h5 className="text-[11px] font-bold uppercase tracking-widest flex items-center gap-2" style={{ color: "var(--theme-dark-text)" }}>
                           Passo {i + 1}
+                          {prod.show_promo && prod.promo_price_cents != null && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wide"
+                              style={{ backgroundColor: "var(--theme-primary)", color: "var(--theme-dark-on-primary)" }}>
+                              PROMO • R$ {(prod.promo_price_cents / 100).toFixed(2).replace(".", ",")}
+                            </span>
+                          )}
                         </h5>
                         <p className="text-sm leading-relaxed font-light" style={{ color: "var(--theme-dark-text-muted)" }}>
                           <span className="font-medium" style={{ color: "var(--theme-accent)" }}>{prod.name}:</span> {prod.description}

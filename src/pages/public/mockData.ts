@@ -310,7 +310,7 @@ export const MOCK_PRODUCTS_BY_PROFILE: Record<string, any[]> = {
   "descanso": [
     { id: "prod-sono", name: "Kit Sono Tranquilo", category: "suplemento_oral", description: "Para ajudar a mente a desacelerar e o corpo a entrar no ritmo certo do sono. Uma combinação calma para a noite.", image_url: null, key_actives: { Magnésio: "200mg", Camomila: "", Passiflora: "", "L-teanina": "" } },
     { id: "prod-magnesio", name: "Magnésio Relax", category: "suplemento_oral", description: "O clássico aliado do descanso. Ajuda a relaxar a musculatura e acalmar o sistema nervoso ao fim do dia.", image_url: null, key_actives: { "Magnésio quelado": "200mg", "Vit B6": "20mg" } },
-    { id: "kit-noite", name: "Kit Noite Reparadora", category: "kit_mensal", description: "Os dois anteriores juntos em um protocolo de 30 dias para noites mais profundas e manhãs com mais vontade.", image_url: null, key_actives: { "Kit": "2 produtos", "Meses": "30 dias" } },
+    { id: "kit-noite", name: "Kit Noite Reparadora", category: "kit_mensal", description: "Os dois anteriores juntos em um protocolo de 30 dias para noites mais profundas e manhãs com mais vontade.", image_url: null, key_actives: { "Kit": "2 produtos", "Meses": "30 dias" }, promo_price_cents: 8990, show_promo: true },
   ],
   "energia": [
     { id: "prod-energia", name: "Energia do Dia", category: "suplemento_oral", description: "Nutrientes que ajudam seu corpo a transformar alimento em energia de verdade, sem depender só de café.", image_url: null, key_actives: { "Complexo B": "", "Coenzima Q10": "100mg", "Ginseng": "" } },
@@ -318,7 +318,7 @@ export const MOCK_PRODUCTS_BY_PROFILE: Record<string, any[]> = {
     { id: "kit-dia", name: "Kit Dia Cheio", category: "kit_mensal", description: "Os dois maiores aliados da disposição em um único protocolo para enfrentar a rotina com mais gás.", image_url: null, key_actives: { "Kit": "2 produtos", "Meses": "30 dias" } },
   ],
   "imunidade": [
-    { id: "prod-imuno", name: "Defesas do Corpo", category: "suplemento_oral", description: "Vitaminas e minerais que fortalecem suas defesas naturais, dentro da dose diária recomendada.", image_url: null, key_actives: { "Vit D": "2000UI", Zinco: "15mg", "Vit C": "1g", "Propolis": "" } },
+    { id: "prod-imuno", name: "Defesas do Corpo", category: "suplemento_oral", description: "Vitaminas e minerais que fortalecem suas defesas naturais, dentro da dose diária recomendada.", image_url: null, key_actives: { "Vit D": "2000UI", Zinco: "15mg", "Vit C": "1g", "Propolis": "" }, promo_price_cents: 13490, show_promo: true },
     { id: "prod-zinco", name: "Proteção Diária", category: "suplemento_oral", description: "Zinco e vitaminas que ajudam na recuperação e deixam o corpo mais preparado para as mudanças de estação.", image_url: null, key_actives: { Zinco: "15mg", "Vit C": "1g", "Selênio": "" } },
     { id: "kit-imuno", name: "Kit Proteção Total", category: "kit_mensal", description: "O reforço completo para sentir o corpo mais forte e protegido o mês inteiro.", image_url: null, key_actives: { "Kit": "2 produtos", "Meses": "30 dias" } },
   ],
