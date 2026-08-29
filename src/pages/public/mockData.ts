@@ -310,42 +310,42 @@ export const MOCK_PRODUCTS_BY_PROFILE: Record<string, any[]> = {
   "descanso": [
     { id: "prod-sono", name: "Kit Sono Tranquilo", category: "suplemento_oral", description: "Para ajudar a mente a desacelerar e o corpo a entrar no ritmo certo do sono. Uma combinação calma para a noite.", image_url: null, key_actives: { Magnésio: "200mg", Camomila: "", Passiflora: "", "L-teanina": "" } },
     { id: "prod-magnesio", name: "Magnésio Relax", category: "suplemento_oral", description: "O clássico aliado do descanso. Ajuda a relaxar a musculatura e acalmar o sistema nervoso ao fim do dia.", image_url: null, key_actives: { "Magnésio quelado": "200mg", "Vit B6": "20mg" } },
-    { id: "kit-noite", name: "Kit Noite Reparadora", category: "kit_mensal", description: "Os dois anteriores juntos em um protocolo de 30 dias para noites mais profundas e manhãs com mais vontade.", image_url: null, key_actives: { "Kit": "2 produtos", "Meses": "30 dias" }, promo_price_cents: 8990, show_promo: true },
+    { id: "kit-noite", name: "Kit Noite Reparadora", category: "kit_mensal", description: "Os dois anteriores juntos em um protocolo de 30 dias para noites mais profundas e manhãs com mais vontade.", image_url: null, key_actives: { "Kit": "2 produtos", "Meses": "30 dias" }, price_cents: 11990, promo_price_cents: 8990, show_promo: true, support_text: "O kit que une o cuidado do sono com a tranquilidade que você merece." },
   ],
   "energia": [
     { id: "prod-energia", name: "Energia do Dia", category: "suplemento_oral", description: "Nutrientes que ajudam seu corpo a transformar alimento em energia de verdade, sem depender só de café.", image_url: null, key_actives: { "Complexo B": "", "Coenzima Q10": "100mg", "Ginseng": "" } },
     { id: "prod-rodiola", name: "Disposição Natural", category: "suplemento_oral", description: "Uma ajuda natural contra o cansaço físico e mental, para os dias mais corridos.", image_url: null, key_actives: { Rhodiola: "300mg", Taurina: "" } },
-    { id: "kit-dia", name: "Kit Dia Cheio", category: "kit_mensal", description: "Os dois maiores aliados da disposição em um único protocolo para enfrentar a rotina com mais gás.", image_url: null, key_actives: { "Kit": "2 produtos", "Meses": "30 dias" } },
+    { id: "kit-dia", name: "Kit Dia Cheio", category: "kit_mensal", description: "Os dois maiores aliados da disposição em um único protocolo para enfrentar a rotina com mais gás.", image_url: null, key_actives: { "Kit": "2 produtos", "Meses": "30 dias" }, support_text: "Toda a energia que você precisa, em um só cuidado." },
   ],
   "imunidade": [
     { id: "prod-imuno", name: "Defesas do Corpo", category: "suplemento_oral", description: "Vitaminas e minerais que fortalecem suas defesas naturais, dentro da dose diária recomendada.", image_url: null, key_actives: { "Vit D": "2000UI", Zinco: "15mg", "Vit C": "1g", "Propolis": "" }, promo_price_cents: 13490, show_promo: true },
     { id: "prod-zinco", name: "Proteção Diária", category: "suplemento_oral", description: "Zinco e vitaminas que ajudam na recuperação e deixam o corpo mais preparado para as mudanças de estação.", image_url: null, key_actives: { Zinco: "15mg", "Vit C": "1g", "Selênio": "" } },
-    { id: "kit-imuno", name: "Kit Proteção Total", category: "kit_mensal", description: "O reforço completo para sentir o corpo mais forte e protegido o mês inteiro.", image_url: null, key_actives: { "Kit": "2 produtos", "Meses": "30 dias" } },
+    { id: "kit-imuno", name: "Kit Proteção Total", category: "kit_mensal", description: "O reforço completo para sentir o corpo mais forte e protegido o mês inteiro.", image_url: null, key_actives: { "Kit": "2 produtos", "Meses": "30 dias" }, support_text: "A proteção completa para o seu corpo se sentir forte o mês inteiro." },
   ],
   "digestao": [
     { id: "prod-intestino", name: "Barriga Leve", category: "suplemento_oral", description: "Probióticos e enzimas que ajudam seu intestino a trabalhar melhor e a digestão a ficar mais confortável.", image_url: null, key_actives: { "Probióticos": "25bi", "Enzimas": "", Glutamina: "5g" } },
     { id: "prod-prebiotico", name: "Flora em Equilíbrio", category: "suplemento_oral", description: "Prebióticos e fibras que alimentam as bactérias boas do intestino, promovendo leveza e regularidade.", image_url: null, key_actives: { "Prebióticos": "3g", "Fibras": "", Psyllium: "" } },
-    { id: "kit-digestao", name: "Kit Leve & Equilibrado", category: "kit_mensal", description: "A dupla perfeita para dizer adeus ao inchaço e curtir as refeições sem desconforto.", image_url: null, key_actives: { "Kit": "2 produtos", "Meses": "30 dias" } },
+    { id: "kit-digestao", name: "Kit Leve & Equilibrado", category: "kit_mensal", description: "A dupla perfeita para dizer adeus ao inchaço e curtir as refeições sem desconforto.", image_url: null, key_actives: { "Kit": "2 produtos", "Meses": "30 dias" }, support_text: "Leveza e conforto para o dia a dia, refeição após refeição." },
   ],
   "beleza": [
     { id: "prod-colageno", name: "Colágeno + Brilho", category: "suplemento_oral", description: "Colágeno hidrolisado com vitamina C para ajudar a pele a ficar mais firme e luminosa.", image_url: null, key_actives: { "Colágeno": "2.5g", "Vit C": "500mg", "Biotina": "" } },
     { id: "prod-serum", name: "Sérum de Vitamina C", category: "dermocosmetico", description: "O toque externo que potencializa o cuidado: um sérum leve com vitamina C para o rosto.", image_url: null, key_actives: { "Vit C": "20%", "Ac. Ferúlico": "0.5%" } },
-    { id: "kit-beleza", name: "Kit Pele de Dentro pra Fora", category: "kit_mensal", description: "O cuidado completo: colágeno por dentro e o sérum por fora, para um brilho de verdade.", image_url: null, key_actives: { "Kit": "2 produtos", "Meses": "30 dias" } },
+    { id: "kit-beleza", name: "Kit Pele de Dentro pra Fora", category: "kit_mensal", description: "O cuidado completo: colágeno por dentro e o sérum por fora, para um brilho de verdade.", image_url: null, key_actives: { "Kit": "2 produtos", "Meses": "30 dias" }, support_text: "Beleza que vem de dentro, pele e cabelo com mais vida." },
   ],
   "equilibrio": [
     { id: "prod-equilibrio", name: "Equilíbrio do Dia", category: "suplemento_oral", description: "Uma combinação de ervas e nutrientes que ajudam o corpo a lidar melhor com o estresse do dia a dia.", image_url: null, key_actives: { Ashwagandha: "300mg", Magnésio: "200mg" } },
     { id: "prod-humor", name: "Bom Humor Natural", category: "suplemento_oral", description: "Magnésio e vitaminas que ajudam a manter o humor mais estável, principalmente naqueles dias difíceis.", image_url: null, key_actives: { "Magnésio": "200mg", "Vit B6": "20mg", Zinco: "" } },
-    { id: "kit-equilibrio", name: "Kit Centro em Equilíbrio", category: "kit_mensal", description: "Para encontrar estabilidade emocional e leveza mesmo nos dias mais intensos.", image_url: null, key_actives: { "Kit": "2 produtos", "Meses": "30 dias" } },
+    { id: "kit-equilibrio", name: "Kit Centro em Equilíbrio", category: "kit_mensal", description: "Para encontrar estabilidade emocional e leveza mesmo nos dias mais intensos.", image_url: null, key_actives: { "Kit": "2 produtos", "Meses": "30 dias" }, support_text: "Estabilidade e paz de espírito em um único cuidado." },
   ],
   "performance": [
     { id: "prod-creatina", name: "Creatina Força", category: "suplemento_oral", description: "Creatina monoidratada para ajudar na força, na potência e no ganho de massa magra.", image_url: null, key_actives: { Creatina: "3g" } },
     { id: "prod-whey", name: "Recuperação Muscular", category: "suplemento_oral", description: "Proteína e aminoácidos que ajudam o músculo a se recuperar e crescer após o treino.", image_url: null, key_actives: { Whey: "25g", BCAA: "5g", Glutamina: "" } },
-    { id: "kit-performance", name: "Kit Treino Completo", category: "kit_mensal", description: "Creatina + recuperação juntas para evoluir no treino e recuperar mais rápido.", image_url: null, key_actives: { "Kit": "2 produtos", "Meses": "30 dias" } },
+    { id: "kit-performance", name: "Kit Treino Completo", category: "kit_mensal", description: "Creatina + recuperação juntas para evoluir no treino e recuperar mais rápido.", image_url: null, key_actives: { "Kit": "2 produtos", "Meses": "30 dias" }, support_text: "Força e recuperação para evoluir no seu treino." },
   ],
   "emagrecimento": [
     { id: "prod-termogenico", name: "Metabolismo em Dia", category: "suplemento_oral", description: "Uma ajuda natural para o corpo gastar energia de forma equilibrada, junto com a dieta.", image_url: null, key_actives: { "Cafeína": "", "Chá verde": "", Cromo: "" } },
     { id: "prod-saciedade", name: "Controle da Fome", category: "suplemento_oral", description: "Fibras que dão saciedade e ajudam a segurar a fome entre as refeições, sem beliscar.", image_url: null, key_actives: { "Fibra solúvel": "", Psyllium: "", Cromo: "" } },
-    { id: "kit-emagrece", name: "Kit Metabolismo Ativo", category: "kit_mensal", description: "A dupla que apoia seu corpo a trabalhar a favor da dieta, com fome controlada e mais energia.", image_url: null, key_actives: { "Kit": "2 produtos", "Meses": "30 dias" } },
+    { id: "kit-emagrece", name: "Kit Metabolismo Ativo", category: "kit_mensal", description: "A dupla que apoia seu corpo a trabalhar a favor da dieta, com fome controlada e mais energia.", image_url: null, key_actives: { "Kit": "2 produtos", "Meses": "30 dias" }, support_text: "Seu corpo trabalhando a favor da dieta, com fome controlada." },
   ],
 };
 

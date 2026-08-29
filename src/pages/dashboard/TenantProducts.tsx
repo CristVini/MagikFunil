@@ -5,12 +5,46 @@ import { MOCK_PRODUCTS, MOCK_PLANS, MOCK_PLAN } from "./mockData";
 // Face 2.3 — Produtos: o cliente ativa itens do catálogo pré-criado e
 // cola o link de venda de cada um, agrupados pelo protocolo do funil
 // (2 produtos + 1 kit por perfil). Limite é o max_products do plano.
+const KITS_STORAGE_KEY = "magikfunil-kits"; // nome + texto de apoio dos kits (reflete no funil)
+
+function loadKitsOverrides() {
+  try {
+    const raw = localStorage.getItem(KITS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+// Formata centavos -> "119,90" (sem casas decimais desnecessárias); vazio se null
+function formatPrice(cents?: number | null): string {
+  if (cents == null) return "";
+  const reais = (cents / 100).toFixed(2).replace(".", ",");
+  return reais.endsWith(",00") ? reais.slice(0, -3) : reais;
+}
+
 export function TenantProducts() {
   const [products, setProducts] = useState(MOCK_PRODUCTS);
   const [plan, setPlan] = useState(MOCK_PLAN); // demo: trocar pra Enterprise destrava a promo
   const [search, setSearch] = useState("");
   const [savingUrl, setSavingUrl] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+
+  // Sprint: kits com nome/texto de apoio/preços personalizados (persistidos)
+  const [kitOverrides, setKitOverrides] = useState<Record<string, { kit_name?: string; support_text?: string; price_cents?: number; promo_price_cents?: number }>>(loadKitsOverrides);
+
+  const persistKits = (next: Record<string, { kit_name?: string; support_text?: string; price_cents?: number; promo_price_cents?: number }>) => {
+    setKitOverrides(next);
+    localStorage.setItem(KITS_STORAGE_KEY, JSON.stringify(next));
+  };
+
+  const setKitField = (id: string, field: "kit_name" | "support_text" | "price_cents" | "promo_price_cents", value: string) => {
+    const numFields = ["price_cents", "promo_price_cents"];
+    const parsed = numFields.includes(field)
+      ? Math.round(parseFloat(value.replace(",", ".")) * 100) || null
+      : value;
+    persistKits({ ...kitOverrides, [id]: { ...kitOverrides[id], [field]: parsed } });
+  };
 
   const maxProducts = plan.max_products;
   const activeCount = products.filter(p => p.enabled).length;
@@ -174,19 +208,92 @@ export function TenantProducts() {
                   <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${p.is_kit ? "bg-violet-500/10 text-violet-600" : p.enabled ? "bg-amber-500/10 text-amber-600" : "bg-stone-100 text-stone-400"}`}>
                     <Package size={22} />
                   </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-stone-950 truncate">{p.name}</h3>
-                      {p.is_kit && (
-                        <span className="px-2 py-0.5 bg-violet-100 text-violet-700 rounded-full text-[10px] font-bold uppercase tracking-wide shrink-0">Kit</span>
-                      )}
-                      <span className="px-2 py-0.5 bg-stone-100 text-stone-500 rounded-full text-[10px] capitalize">{p.category.replace("_", " ")}</span>
-                    </div>
-                    <p className="text-xs text-stone-500 mt-1">{p.description}</p>
-                    <p className="text-xs text-stone-400 mt-0.5">
-                      De <span className="text-amber-600 font-medium">{p.profileLabel}</span>
-                      {p.clicks > 0 && <span className="ml-2">• {p.clicks} cliques</span>}
-                    </p>
+                  <div className="min-w-0 flex-1">
+                    {p.is_kit ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 bg-violet-100 text-violet-700 rounded-full text-[10px] font-bold uppercase tracking-wide shrink-0">Kit</span>
+                          <span className="px-2 py-0.5 bg-stone-100 text-stone-500 rounded-full text-[10px] capitalize shrink-0">{p.category.replace("_", " ")}</span>
+                        </div>
+                        {/* Nome do kit (editável) */}
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-0.5">Nome do kit</label>
+                          <input
+                            type="text"
+                            value={kitOverrides[p.id]?.kit_name ?? p.name}
+                            onChange={e => setKitField(p.id, "kit_name", e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl text-sm font-semibold text-stone-950 bg-white border border-stone-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                          />
+                        </div>
+                        {/* Texto de apoio (editável) */}
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-0.5">Texto de apoio</label>
+                          <textarea
+                            rows={2}
+                            value={kitOverrides[p.id]?.support_text ?? p.support_text ?? ""}
+                            onChange={e => setKitField(p.id, "support_text", e.target.value)}
+                            placeholder={p.support_text}
+                            className="w-full px-3 py-2 rounded-xl text-xs text-stone-600 bg-white border border-stone-200 focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
+                          />
+                        </div>
+                        {/* Preços do kit (editáveis — recurso premium Enterprise) */}
+                        <div className={`grid grid-cols-2 gap-2 rounded-xl p-2.5 ${plan.allowsPromo ? "bg-white border border-stone-200" : "bg-stone-50 border border-dashed border-stone-300"}`}>
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-0.5">Preço normal</label>
+                            <div className="flex items-center">
+                              <span className="text-xs text-stone-400 mr-1">R$</span>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={formatPrice(kitOverrides[p.id]?.price_cents ?? p.price_cents)}
+                                onChange={e => setKitField(p.id, "price_cents", e.target.value)}
+                                disabled={!plan.allowsPromo}
+                                placeholder="119,90"
+                                className={`w-full px-2 py-1.5 rounded-lg text-sm font-semibold text-stone-950 focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-60 ${plan.allowsPromo ? "bg-white border border-stone-200" : "bg-stone-100 cursor-not-allowed"}`}
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-0.5 flex items-center gap-1">
+                              Preço promo {plan.allowsPromo && <span className="text-violet-600">●</span>}
+                            </label>
+                            <div className="flex items-center">
+                              <span className="text-xs text-stone-400 mr-1">R$</span>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={formatPrice(kitOverrides[p.id]?.promo_price_cents ?? p.promo_price_cents)}
+                                onChange={e => setKitField(p.id, "promo_price_cents", e.target.value)}
+                                disabled={!plan.allowsPromo}
+                                placeholder="89,90"
+                                className={`w-full px-2 py-1.5 rounded-lg text-sm font-bold text-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-60 ${plan.allowsPromo ? "bg-white border border-stone-200" : "bg-stone-100 cursor-not-allowed"}`}
+                              />
+                            </div>
+                          </div>
+                          {!plan.allowsPromo && (
+                            <p className="col-span-2 text-[10px] text-stone-400 mt-0.5 flex items-center gap-1">
+                              <Lock size={10} /> Preços exclusivos do plano Enterprise
+                            </p>
+                          )}
+                        </div>
+                        <p className="text-xs text-stone-400 mt-0.5">
+                          De <span className="text-amber-600 font-medium">{p.profileLabel}</span>
+                          {p.clicks > 0 && <span className="ml-2">• {p.clicks} cliques</span>}
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-stone-950 truncate">{p.name}</h3>
+                          <span className="px-2 py-0.5 bg-stone-100 text-stone-500 rounded-full text-[10px] capitalize shrink-0">{p.category.replace("_", " ")}</span>
+                        </div>
+                        <p className="text-xs text-stone-500 mt-1">{p.description}</p>
+                        <p className="text-xs text-stone-400 mt-0.5">
+                          De <span className="text-amber-600 font-medium">{p.profileLabel}</span>
+                          {p.clicks > 0 && <span className="ml-2">• {p.clicks} cliques</span>}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -237,8 +344,8 @@ export function TenantProducts() {
                     <div className={`w-11 h-6 rounded-full peer peer-focus:ring-2 peer-focus:ring-violet-500 transition-colors ${p.show_promo && p.enabled ? "bg-violet-500" : "bg-stone-300"}`}>
                       <span className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform ${p.show_promo && p.enabled ? "translate-x-5" : ""}`} />
                     </div>
-                    <span className="ml-3 text-sm text-stone-600 w-24">
-                      {p.enabled ? (p.show_promo ? p.promo_price_cents ? `Promo R$ ${(p.promo_price_cents / 100).toFixed(2).replace('.', ',')}` : "Promo" : "Promo OFF") : "Promo"}
+                    <span className="ml-3 text-sm font-semibold w-24">
+                      {p.enabled ? (p.show_promo ? <span className="text-violet-600">ON</span> : <span className="text-stone-400">OFF</span>) : <span className="text-stone-400">—</span>}
                     </span>
                   </label>
                 ) : (

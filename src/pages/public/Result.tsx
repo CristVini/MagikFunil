@@ -5,12 +5,29 @@ import { useEffect, useState } from "react";
 import { useQuiz } from "@hooks/useQuiz";
 import {
   ShoppingBag, RotateCcw, Info, Sparkles, Wind, Moon, Sun, Coffee,
-  ArrowRight, Brain, Zap,
+  ArrowRight, Brain, Zap, Flame,
 } from "lucide-react";
 import { supabase } from "@lib/supabase";
 import { IngredientModal } from "@components/IngredientModal";
 import { resolveCTAAction, buildCtaDestination, CTAAction } from "@packages/cta";
 import { MOCK_INGREDIENTS } from "@pages/public/mockData";
+
+// Lê a personalização do kit (nome, texto de apoio, preços) feita pelo cliente no dashboard
+const KITS_STORAGE_KEY = "magikfunil-kits";
+function getKitOverride(id: string): { kit_name?: string; support_text?: string; price_cents?: number; promo_price_cents?: number } {
+  try {
+    const raw = localStorage.getItem(KITS_STORAGE_KEY);
+    if (!raw) return {};
+    const all = JSON.parse(raw);
+    return all[id] || {};
+  } catch {
+    return {};
+  }
+}
+
+// Formata centavos -> "R$ 89,90"
+const brl = (cents?: number | null) =>
+  cents == null ? "" : `R$ ${(cents / 100).toFixed(2).replace(".", ",")}`;
 
 interface QuizResult {
   winner: any | null;
@@ -207,44 +224,137 @@ export function Result() {
                 </button>
               </div>
 
-              {/* Coluna 3: Protocolo de Ativação (produtos recomendados) */}
+              {/* Coluna 3: Kits Recomendados (produtos + kit em destaque) */}
               <div className="space-y-8">
-                <div className="flex items-center gap-3" style={{ color: "var(--theme-accent)" }}>
-                  <Sparkles size={16} strokeWidth={1.5} />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.3em]">Protocolo Recomendado</span>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-3" style={{ color: "var(--theme-accent)" }}>
+                    <Sparkles size={16} strokeWidth={1.5} />
+                    <span className="text-[10px] font-bold uppercase tracking-[0.3em]">Kits recomendados</span>
+                  </div>
+                  <p className="text-sm font-light" style={{ color: "var(--theme-dark-text-muted)" }}>
+                    Este é o passo a passo pensado para o seu momento. O kit é a forma mais completa (e com melhor custo) de começar.
+                  </p>
                 </div>
 
                 <div className="flex flex-col gap-6">
-                  {recommendedProducts.map((prod, i) => (
-                    <div key={prod.id} className="flex gap-5 group/step">
-                      <div className="shrink-0 w-12 h-12 rounded-2xl border flex items-center justify-center transition-all duration-500" style={{ borderColor: "var(--theme-dark-border)", backgroundColor: "var(--theme-dark-background)" }}>
-                        {getIcon(i)}
-                      </div>
-                      <button
-                        onClick={() => handleIngredientClick({
-                          name: prod.name,
-                          benefit: "Cuidado",
-                          description: prod.description,
-                          scientific_basis: `${Object.entries(prod.key_actives || {}).map(([k, v]) => `${k}${v ? " " + v : ""}`).join(" + ")}`,
-                          key_actives: prod.key_actives,
-                        })}
-                        className="space-y-1.5 text-left group/step"
+                  {recommendedProducts.map((prod, i) =>
+                    prod.show_promo && prod.promo_price_cents != null ? (
+                      // ===== Item em PROMOÇÃO — destaque grande =====
+                      <div key={prod.id} className="relative rounded-3xl p-6 overflow-hidden border-2 animate-in fade-in zoom-in-95 duration-500"
+                        style={{
+                          borderColor: "var(--theme-primary)",
+                          background: "linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))",
+                          boxShadow: "0 20px 60px -20px var(--theme-primary)",
+                        }}
                       >
-                        <h5 className="text-[11px] font-bold uppercase tracking-widest flex items-center gap-2" style={{ color: "var(--theme-dark-text)" }}>
-                          Passo {i + 1}
-                          {prod.show_promo && prod.promo_price_cents != null && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wide"
-                              style={{ backgroundColor: "var(--theme-primary)", color: "var(--theme-dark-on-primary)" }}>
-                              PROMO • R$ {(prod.promo_price_cents / 100).toFixed(2).replace(".", ",")}
+                        {/* Cantos/gradiente sutil */}
+                        <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full blur-3xl pointer-events-none" style={{ backgroundColor: "var(--theme-primary)", opacity: 0.18 }} />
+
+                        <div className="relative flex flex-col gap-4">
+                          {/* Topo: badge PROMO grande */}
+                          <div className="flex items-center gap-3">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest"
+                              style={{ backgroundColor: "var(--theme-primary)", color: "var(--theme-dark-on-primary)", boxShadow: "0 4px 16px -4px var(--theme-primary)" }}>
+                              <Flame size={14} /> Promoção
                             </span>
-                          )}
-                        </h5>
-                        <p className="text-sm leading-relaxed font-light" style={{ color: "var(--theme-dark-text-muted)" }}>
-                          <span className="font-medium" style={{ color: "var(--theme-accent)" }}>{prod.name}:</span> {prod.description}
-                        </p>
-                      </button>
-                    </div>
-                  ))}
+                            <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--theme-dark-text-muted)" }}>
+                              Passo {i + 1} · {prod.category.replace("_", " ")}
+                            </span>
+                          </div>
+
+                          {/* Nome + preços */}
+                          <div className="flex items-end justify-between gap-4 flex-wrap">
+                            <div className="min-w-0">
+                              <h4 className="text-2xl font-display font-bold leading-tight" style={{ color: "var(--theme-dark-text)", fontFamily: "var(--font-display)" }}>
+                                {getKitOverride(prod.id).kit_name || prod.name}
+                              </h4>
+                              <p className="text-sm font-light mt-1" style={{ color: "var(--theme-dark-text-muted)" }}>
+                                {getKitOverride(prod.id).support_text || prod.support_text || "Protocolo de 30 dias · os produtos não precisam de receita"}
+                              </p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-[10px] font-bold uppercase tracking-widest flex items-center justify-end gap-1.5" style={{ color: "var(--theme-dark-text-muted)" }}>
+                                Por apenas
+                              </p>
+                              <div className="flex items-end justify-end gap-2">
+                                {(() => {
+                                  const o = getKitOverride(prod.id);
+                                  const promo = o.promo_price_cents ?? prod.promo_price_cents;
+                                  const normal = o.price_cents ?? prod.price_cents;
+                                  if (normal && promo && normal > promo) {
+                                    // Preço normal riscado + promocional grande
+                                    return (
+                                      <>
+                                        <span className="text-2xl font-semibold line-through opacity-70" style={{ color: "var(--theme-dark-text-muted)" }}>
+                                          {brl(normal)}
+                                        </span>
+                                        <span className="text-4xl font-black tracking-tight leading-none" style={{ color: "var(--theme-primary)" }}>
+                                          {brl(promo)}
+                                        </span>
+                                      </>
+                                    );
+                                  }
+                                  if (promo) {
+                                    return (
+                                      <span className="text-4xl font-black tracking-tight leading-none" style={{ color: "var(--theme-primary)" }}>
+                                        {brl(promo)}
+                                      </span>
+                                    );
+                                  }
+                                  return null;
+                                })()}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Descrição */}
+                          <p className="text-sm leading-relaxed font-light" style={{ color: "var(--theme-dark-text-muted)" }}>
+                            {prod.description}
+                          </p>
+
+                          {/* Ação */}
+                          <button
+                            onClick={() => handleIngredientClick({
+                              name: prod.name,
+                              benefit: "Kit em promoção",
+                              description: prod.description,
+                              scientific_basis: `${Object.entries(prod.key_actives || {}).map(([k, v]) => `${k}${v ? " " + v : ""}`).join(" + ")}`,
+                              key_actives: prod.key_actives,
+                            })}
+                            className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-bold text-sm uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-transform"
+                            style={{ backgroundColor: "var(--theme-primary)", color: "var(--theme-dark-on-primary)", boxShadow: "0 8px 30px -8px var(--theme-primary)" }}
+                          >
+                            Peça este kit hoje
+                            <ArrowRight size={18} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      // ===== Item normal (Passo X) =====
+                      <div key={prod.id} className="flex gap-5 group/step">
+                        <div className="shrink-0 w-12 h-12 rounded-2xl border flex items-center justify-center transition-all duration-500" style={{ borderColor: "var(--theme-dark-border)", backgroundColor: "var(--theme-dark-background)" }}>
+                          {getIcon(i)}
+                        </div>
+                        <button
+                          onClick={() => handleIngredientClick({
+                            name: prod.name,
+                            benefit: "Cuidado",
+                            description: prod.description,
+                            scientific_basis: `${Object.entries(prod.key_actives || {}).map(([k, v]) => `${k}${v ? " " + v : ""}`).join(" + ")}`,
+                            key_actives: prod.key_actives,
+                          })}
+                          className="space-y-1.5 text-left group/step"
+                        >
+                          <h5 className="text-[11px] font-bold uppercase tracking-widest flex items-center gap-2" style={{ color: "var(--theme-dark-text)" }}>
+                            Passo {i + 1}
+                          </h5>
+                          <p className="text-sm leading-relaxed font-light" style={{ color: "var(--theme-dark-text-muted)" }}>
+                            <span className="font-medium" style={{ color: "var(--theme-accent)" }}>{prod.name}:</span> {prod.description}
+                          </p>
+                        </button>
+                      </div>
+                    )
+                  )}
                   {recommendedProducts.length === 0 && (
                     <p className="text-sm" style={{ color: "var(--theme-dark-text-muted)" }}>Carregando protocolo recomendado...</p>
                   )}
