@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@hooks/useAuth';
 import { ShieldCheck, Mail, Lock, Eye, EyeOff, ArrowRight, AlertTriangle } from 'lucide-react';
 import { MOCK_ADMIN_USER } from '@pages/admin/mockData';
+import { isSupabaseConfigured } from '@lib/supabase';
 
 export function AdminLogin() {
   const [email, setEmail] = useState('');
@@ -10,7 +11,7 @@ export function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { setUser, setUserRole } = useAuth();
+  const { signIn, signOut, setUser, setUserRole } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -25,9 +26,30 @@ export function AdminLogin() {
     setLoading(true);
 
     try {
-      // Em modo demo: autentica como administrador
-      setUser(MOCK_ADMIN_USER as any);
-      setUserRole('admin');
+      if (!isSupabaseConfigured) {
+        // Modo demo: qualquer e-mail e senha autenticam como administrador
+        setUser(MOCK_ADMIN_USER as any);
+        setUserRole('admin');
+        navigate('/admin', { replace: true });
+        return;
+      }
+
+      // Supabase real: autentica e exige papel admin
+      const { error: signInError } = await signIn(email, password);
+      if (signInError) {
+        setError('Credenciais inválidas. Verifique e-mail e senha.');
+        setLoading(false);
+        return;
+      }
+
+      const { userRole } = useAuth.getState();
+      if (userRole !== 'admin') {
+        await signOut();
+        setError('Acesso restrito: este e-mail não é administrador.');
+        setLoading(false);
+        return;
+      }
+
       navigate('/admin', { replace: true });
     } catch (err) {
       setError('Erro ao entrar. Tente novamente.');
