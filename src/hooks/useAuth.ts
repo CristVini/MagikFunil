@@ -34,23 +34,31 @@ export const useAuth = create<AuthState>()(
       userRole: null,
 
       signIn: async (email: string, password: string) => {
-        // Modo demo (sem Supabase): aceita qualquer credencial
-        if (!isSupabaseConfigured) {
-          set({ user: MOCK_AUTH_USER as MockUser, session: { user: MOCK_AUTH_USER }, userRole: 'tenant_user', loading: false, initialized: true });
-          return { error: null };
-        }
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        return { error: error ? new Error(error.message) : null };
-      },
+      // Modo demo (sem Supabase): aceita qualquer credencial
+      if (!isSupabaseConfigured) {
+        set({ user: MOCK_AUTH_USER as MockUser, session: { user: MOCK_AUTH_USER }, userRole: 'tenant_user', loading: false, initialized: true });
+        return { error: null };
+      }
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (!error && data?.user) {
+        const role = data.user.user_metadata?.role || 'tenant_user';
+        set({ user: data.user, session: data, userRole: role, loading: false, initialized: true });
+      }
+      return { error: error ? new Error(error.message) : null };
+    },
 
-      signUp: async (email: string, password: string, metadata?: any) => {
-        if (!isSupabaseConfigured) {
-          set({ user: MOCK_AUTH_USER as MockUser, session: { user: MOCK_AUTH_USER }, userRole: 'tenant_user', loading: false, initialized: true });
-          return { error: null };
-        }
-        const { data, error } = await supabase.auth.signUp({ email, password, options: { data: metadata } });
-        return { error: error ? new Error(error.message) : null };
-      },
+    signUp: async (email: string, password: string, metadata?: any) => {
+      if (!isSupabaseConfigured) {
+        set({ user: MOCK_AUTH_USER as MockUser, session: { user: MOCK_AUTH_USER }, userRole: 'tenant_user', loading: false, initialized: true });
+        return { error: null };
+      }
+      const { data, error } = await supabase.auth.signUp({ email, password, options: { data: metadata } });
+      if (!error && data?.user) {
+        const role = data.user.user_metadata?.role || 'tenant_user';
+        set({ user: data.user, session: data, userRole: role, loading: false, initialized: true });
+      }
+      return { error: error ? new Error(error.message) : null };
+    },
 
       signOut: async () => {
         if (!isSupabaseConfigured) {
