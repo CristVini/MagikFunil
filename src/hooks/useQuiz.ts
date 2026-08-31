@@ -11,6 +11,7 @@ import {
 interface QuizState {
   questions: QuizQuestion[];
   profiles: Record<string, Profile>;
+  protocol: Record<string, any[]>; // perfil -> produtos recomendados
   currentStep: number;
   scores: Record<string, number>;
   answers: QuizAnswer[];
@@ -34,6 +35,7 @@ interface QuizState {
 export const useQuiz = create<QuizState>((set, get) => ({
   questions: [],
   profiles: {},
+  protocol: {},
   currentStep: 0,
   scores: {},
   answers: [],
@@ -62,39 +64,29 @@ export const useQuiz = create<QuizState>((set, get) => ({
         return;
       }
 
-      // Buscar template (produção)
-      const { data: template, error: templateError } = await supabase
-        .from("templates")
-        .select("id, tenant_id")
-        .eq("slug", templateSlug)
-        .single();
+      // Produção: busca tudo do funil via RPC get_funnel (uma chamada)
+      const { data: funnel, error: funnelError } = await supabase
+        .rpc("get_funnel", { p_template_slug: templateSlug });
 
-      if (templateError || !template) throw new Error("Template não encontrado");
+      if (funnelError) throw funnelError;
+      if (!funnel || funnel.error === "template_not_found") throw new Error("Template não encontrado");
 
-      set({ templateId: template.id, tenantId: template.tenant_id });
-
-      const { data: questions, error: questionsError } = await supabase
-        .from("quiz_questions")
-        .select("*, options:quiz_options(*)")
-        .eq("template_id", template.id)
-        .order("position");
-
-      if (questionsError) throw questionsError;
-
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("template_id", template.id)
-        .order("display_order");
-
-      if (profilesError) throw profilesError;
-
+      // Monta perfis (key = uuid)
       const profilesMap: Record<string, Profile> = {};
-      (profiles as any[]).forEach((p: any) => { profilesMap[p.id] = p as Profile; });
+      (funnel.profiles as any[] || []).forEach((p: any) => { profilesMap[p.id] = p as Profile; });
+
+      // Monta protocolo: perfil (uuid) -> produtos
+      const protocol: Record<string, any[]> = {};
+      (funnel.protocol as any[] || []).forEach((pr: any) => {
+        protocol[pr.profile_id] = pr.products || [];
+      });
 
       set({
-        questions: (questions as any[]) || [],
+        questions: (funnel.questions as any[]) || [],
         profiles: profilesMap,
+        protocol,
+        templateId: funnel.template?.id,
+        tenantId: null,
         loading: false,
         error: null,
       });
@@ -201,7 +193,10 @@ export const useQuiz = create<QuizState>((set, get) => ({
   },
 
   getRecommendedProducts: (profileId: string) => {
-    // Em demo, usa os mocks por perfil; em produção seria via Supabase
+    // Em produção: produtos do protocol vindo do get_funnel (key = uuid do perfil)
+    const { protocol } = get();
+    if (protocol[profileId]) return protocol[profileId];
+    // Fallback demo: mocks por perfil
     return MOCK_PRODUCTS_BY_PROFILE[profileId] || [];
   },
 
