@@ -63,7 +63,7 @@ create table profiles (
   description text not null,
   scientific_basis text not null,
   expected_effect text not null,
-  references text[],
+  "references" text[],
   notes text[],
   color text not null,
   display_order int not null default 0,
@@ -159,6 +159,20 @@ create table subscriptions (
   updated_at timestamptz default now()
 );
 
+-- LEADS capturados (criado ANTES de events, pois events.lead_id a referencia)
+create table leads (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid references tenants(id) on delete cascade not null,
+  name text,
+  phone text,
+  winning_profile uuid references profiles(id),
+  secondary_profile uuid references profiles(id),
+  answers jsonb,
+  source_url text,
+  status lead_status not null default 'new',
+  created_at timestamptz default now()
+);
+
 -- EVENTOS GRANAULARES (alimenta analytics de DECISÃO do Enterprise)
 create table events (
   id uuid primary key default gen_random_uuid(),
@@ -170,20 +184,6 @@ create table events (
   source_url text,
   referrer text,
   payload jsonb,
-  created_at timestamptz default now()
-);
-
--- LEADS capturados
-create table leads (
-  id uuid primary key default gen_random_uuid(),
-  tenant_id uuid references tenants(id) on delete cascade not null,
-  name text,
-  phone text,
-  winning_profile uuid references profiles(id),
-  secondary_profile uuid references profiles(id),
-  answers jsonb,
-  source_url text,
-  status lead_status not null default 'new',
   created_at timestamptz default now()
 );
 
@@ -421,7 +421,7 @@ begin
   
   return v_tenant_id;
 end;
-$$ language plpgsql security definer;
+$$ security definer;
 
 -- ============================================================
 -- FUNÇÃO HELPER: Registrar evento (para ser chamada via RPC)
@@ -440,7 +440,7 @@ begin
   insert into events (tenant_id, lead_id, kind, product_id, profile_id, source_url, referrer, payload)
   values (p_tenant_id, p_lead_id, p_kind, p_product_id, p_profile_id, p_source_url, p_referrer, p_payload);
 end;
-$$ language plpgsql security definer;
+$$ security definer;
 
 -- ============================================================
 -- FUNÇÃO HELPER: Finalizar quiz e criar lead
@@ -462,4 +462,4 @@ begin
   
   return v_lead_id;
 end;
-$$ language plpgsql security definer;
+$$ security definer;

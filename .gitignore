@@ -42,3 +42,7 @@ supabase/.temp/
 # Misc
 *.tgz
 .cache/
+
+# Docs de planejamento (não vão pro git nem pro deploy)
+/PLANO_*.md
+/ESPECIFICACAO_*.md
