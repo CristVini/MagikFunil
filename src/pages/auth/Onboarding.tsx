@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@hooks/useAuth';
+import { supabase } from '@lib/supabase';
 import { Sparkles, Building2, Globe, LayoutTemplate, Check, ArrowRight, ArrowLeft, Loader2 } from 'lucide-react';
-import { MOCK_ADMIN_USER } from '@pages/admin/mockData';
 
 const TEMPLATES = [
   {
@@ -28,7 +28,6 @@ export function Onboarding() {
   const [templateId, setTemplateId] = useState('encapsulados-nutraceuticos');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { user, setUser, setUserRole, initialize } = useAuth();
   const navigate = useNavigate();
 
   const handleSlugChange = (v: string) => {
@@ -39,23 +38,41 @@ export function Onboarding() {
   const finish = async () => {
     setLoading(true);
     try {
-      // Em modo mock: associa o tenant ao usuário e navega ao dashboard
-      const tenantId = `tenant-${slug}`;
+      // Resolve o template pelo slug para obter o id (uuid)
+      const { data: tpl } = await supabase
+        .from("templates")
+        .select("id")
+        .eq("slug", templateId)
+        .single();
+
+      if (!tpl?.id) throw new Error("template");
+
+      // Cria o tenant real com trial (RPC security definer no backend)
+      const tenantId = await supabase
+        .rpc("create_tenant_with_trial", {
+          p_slug: slug,
+          p_name: brandName,
+          p_template_id: tpl.id,
+        });
+
+      if (tenantId.error) throw tenantId.error;
+
+      // Atualiza o user com o tenant criado
+      const { user: sessionUser } = useAuth.getState();
       const updatedUser = {
-        ...(user || MOCK_ADMIN_USER),
+        ...(sessionUser || {}),
         user_metadata: {
-          ...(user?.user_metadata || {}),
-          tenant_id: tenantId,
+          ...(sessionUser?.user_metadata || {}),
+          tenant_id: tenantId.data,
           tenant_name: brandName,
           role: 'tenant_user',
         },
       };
-      setUser(updatedUser as any);
-      setUserRole('tenant_user');
-      await initialize();
+      await supabase.auth.updateUser({ data: updatedUser.user_metadata });
+
       navigate('/dashboard', { replace: true });
     } catch (err) {
-      setError('Não foi possível criar seu funil. Tente novamente.');
+      setError('Não foi possível criar seu funil. Verifique se o endereço já não está em uso e tente novamente.');
       setLoading(false);
     }
   };

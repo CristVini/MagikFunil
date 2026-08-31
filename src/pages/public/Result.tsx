@@ -10,7 +10,6 @@ import {
 import { supabase } from "@lib/supabase";
 import { IngredientModal } from "@components/IngredientModal";
 import { resolveCTAAction, buildCtaDestination, CTAAction } from "@packages/cta";
-import { MOCK_INGREDIENTS } from "@pages/public/mockData";
 
 // Lê a personalização do kit (nome, texto de apoio, preços) feita pelo cliente no dashboard
 const KITS_STORAGE_KEY = "magikfunil-kits";
@@ -65,15 +64,14 @@ export function Result() {
   const { winner, runnerUp, ranking } = result;
   const recommendedProducts = getRecommendedProducts(winner?.id || "");
 
-  // Resolve o detalhe do ativo a partir da lista de notas do perfil
+  // Resolve o detalhe do ativo a partir da lista de notas do perfil.
+  // Dados reais vêm do get_funnel (notes do perfil). Quando não há detalhe
+  // específico do ativo, usa copy neutra de apresentação (não é dado de negócio).
   const activeNotes = ((winner?.notes || []) as string[]).map((note: string) => ({
-    ...(MOCK_INGREDIENTS[note] || {
-      name: note,
-      benefit: "Bem-estar",
-      description: "Ativo que apoia o cuidado recomendado para o seu momento.",
-      scientific_basis: "",
-    }),
     name: note,
+    benefit: "Bem-estar",
+    description: "Ativo que apoia o cuidado recomendado para o seu momento.",
+    scientific_basis: "",
   }));
 
   const handleIngredientClick = (note: any) => {

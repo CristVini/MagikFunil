@@ -2,8 +2,7 @@
 
 import { useParams, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { supabase, isSupabaseConfigured } from "@lib/supabase";
-import { MOCK_TENANT, MOCK_PRODUCTS } from "@pages/dashboard/mockData";
+import { supabase } from "@lib/supabase";
 import { useQuiz } from "@hooks/useQuiz";
 import { ArrowRight, ShoppingBag, CheckCircle, Sparkles, Loader2, ExternalLink, User, Phone, ShieldCheck } from "lucide-react";
 
@@ -23,10 +22,6 @@ export function ProductCapture() {
   }, [slug]);
 
   useEffect(() => {
-    if (!isSupabaseConfigured) {
-      setTenant({ ...MOCK_TENANT, slug });
-      return;
-    }
     supabase.from("tenants").select("*").eq("slug", slug).single().then(({ data }: { data: any }) => {
       if (data) setTenant(data);
     });
@@ -37,17 +32,6 @@ export function ProductCapture() {
     const params = new URLSearchParams(window.location.search);
     const productId = params.get("product_id");
     const productName = params.get("product_name");
-
-    if (!isSupabaseConfigured) {
-      // Modo demo: resolve o produto a partir do mock (por nome ou id)
-      const found = productName
-        ? MOCK_PRODUCTS.find((p: any) => p.name.toLowerCase() === productName.toLowerCase())
-        : productId
-          ? MOCK_PRODUCTS.find((p: any) => p.id === productId)
-          : null;
-      if (found && found.enabled) setProduct(found);
-      return;
-    }
 
     if (productId) {
       supabase.from("products").select("*").eq("id", productId).single().then(({ data }: { data: any }) => {
@@ -65,7 +49,7 @@ export function ProductCapture() {
     const result = useQuiz.getState().getResult();
     const winner = result.winner;
 
-    // Grava o lead local (mock) e tenta no Supabase se configurado
+    // Grava o lead direto no Supabase (persistência real)
     const leadPayload = {
       tenant_id: tenant.id,
       name: leadName,
@@ -78,12 +62,6 @@ export function ProductCapture() {
     };
 
     try {
-      // Persistência local para o dashboard do tenant (mock)
-      const existing = JSON.parse(window.localStorage.getItem("magikfunil-leads") || "[]");
-      existing.unshift({ ...leadPayload, created_at: new Date().toISOString() });
-      window.localStorage.setItem("magikfunil-leads", JSON.stringify(existing));
-
-      // Supabase real (se configurado)
       await supabase.from("leads").insert(leadPayload);
       console.info("[MagikFunil] Lead capturado:", leadPayload);
     } catch (err) {

@@ -5,7 +5,7 @@ import App from './App';
 import { useAuthInit } from './hooks/useAuth';
 import './index.css';
 
-// Inicializa a autenticação (Supabase ou, em modo demo/mock, usuário fictício)
+// Inicializa a autenticação (sessão real do Supabase)
 function AuthBootstrap() {
   useAuthInit();
   return <App />;

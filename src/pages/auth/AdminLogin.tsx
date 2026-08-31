@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@hooks/useAuth';
 import { ShieldCheck, Mail, Lock, Eye, EyeOff, ArrowRight, AlertTriangle } from 'lucide-react';
-import { MOCK_ADMIN_USER } from '@pages/admin/mockData';
 import { isSupabaseConfigured } from '@lib/supabase';
 
 export function AdminLogin() {
@@ -11,7 +10,7 @@ export function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn, signOut, setUser, setUserRole } = useAuth();
+  const { signIn, signOut } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,14 +26,12 @@ export function AdminLogin() {
 
     try {
       if (!isSupabaseConfigured) {
-        // Modo demo: qualquer e-mail e senha autenticam como administrador
-        setUser(MOCK_ADMIN_USER as any);
-        setUserRole('admin');
-        navigate('/admin', { replace: true });
+        setError('Backend não configurado (faltam credenciais do Supabase).');
+        setLoading(false);
         return;
       }
 
-      // Supabase real: autentica e exige papel admin
+      // Autentica de verdade e exige papel admin
       const { error: signInError } = await signIn(email, password);
       if (signInError) {
         setError('Credenciais inválidas. Verifique e-mail e senha.');

@@ -46,3 +46,5 @@ supabase/.temp/
 # Docs de planejamento (não vão pro git nem pro deploy)
 /PLANO_*.md
 /ESPECIFICACAO_*.md
+.vercel
+.env*

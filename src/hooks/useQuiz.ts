@@ -1,12 +1,6 @@
 import { create } from "zustand";
 import { supabase, isSupabaseConfigured } from "@lib/supabase";
 import type { Profile, QuizQuestion, QuizAnswer } from "@packages/quiz-engine";
-import {
-  MOCK_TEMPLATE,
-  MOCK_PROFILES,
-  MOCK_QUESTIONS,
-  MOCK_PRODUCTS_BY_PROFILE,
-} from "@pages/public/mockData";
 
 interface QuizState {
   questions: QuizQuestion[];
@@ -48,23 +42,7 @@ export const useQuiz = create<QuizState>((set, get) => ({
   fetchQuiz: async (templateSlug: string) => {
     set({ loading: true, error: null });
     try {
-      // MODO DEMO: se Supabase não configurado, usa os dados mock do template encapsulados
-      if (!isSupabaseConfigured) {
-        console.warn("[useQuiz] Modo demo — usando dados mock do template encapsulados-nutraceuticos");
-        const profilesMap: Record<string, Profile> = {};
-        MOCK_PROFILES.forEach((p) => { profilesMap[p.id] = p; });
-        set({
-          questions: MOCK_QUESTIONS,
-          profiles: profilesMap,
-          templateId: MOCK_TEMPLATE.id,
-          tenantId: MOCK_TEMPLATE.tenant_id,
-          loading: false,
-          error: null,
-        });
-        return;
-      }
-
-      // Produção: busca tudo do funil via RPC get_funnel (uma chamada)
+      // Busca tudo do funil via RPC get_funnel (uma chamada)
       const { data: funnel, error: funnelError } = await supabase
         .rpc("get_funnel", { p_template_slug: templateSlug });
 
@@ -91,13 +69,6 @@ export const useQuiz = create<QuizState>((set, get) => ({
         error: null,
       });
     } catch (err) {
-      // Se falhar e estivermos em demo, cai nos mocks
-      if (!isSupabaseConfigured) {
-        const profilesMap: Record<string, Profile> = {};
-        MOCK_PROFILES.forEach((p) => { profilesMap[p.id] = p; });
-        set({ questions: MOCK_QUESTIONS, profiles: profilesMap, loading: false, error: null });
-        return;
-      }
       set({ error: err instanceof Error ? err.message : "Erro ao carregar quiz", loading: false });
     }
   },
@@ -193,19 +164,14 @@ export const useQuiz = create<QuizState>((set, get) => ({
   },
 
   getRecommendedProducts: (profileId: string) => {
-    // Em produção: produtos do protocol vindo do get_funnel (key = uuid do perfil)
+    // Produtos do protocol resultando do get_funnel (key = uuid do perfil)
     const { protocol } = get();
-    if (protocol[profileId]) return protocol[profileId];
-    // Fallback demo: mocks por perfil
-    return MOCK_PRODUCTS_BY_PROFILE[profileId] || [];
+    return protocol[profileId] || [];
   },
 
   trackEvent: async (kind: string, payload?: Record<string, any>) => {
     try {
-      if (!isSupabaseConfigured) {
-        console.warn("[useQuiz] Track (demo):", kind, payload);
-        return;
-      }
+      if (!isSupabaseConfigured) return; // sem backend: não rastreia (não trava o quiz)
       await supabase.from("events").insert({
         kind,
         payload: payload || {},
