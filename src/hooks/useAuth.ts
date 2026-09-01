@@ -31,7 +31,7 @@ export const useAuth = create<AuthState>()(
       signIn: async (email: string, password: string) => {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (!error && data?.user) {
-          const role = data.user.user_metadata?.role || 'tenant_user';
+          const role = data.user.app_metadata?.role || data.user.user_metadata?.role || 'tenant_user';
           set({ user: data.user, session: data, userRole: role, loading: false, initialized: true });
         }
         return { error: error ? new Error(error.message) : null };
@@ -40,7 +40,7 @@ export const useAuth = create<AuthState>()(
       signUp: async (email: string, password: string, metadata?: any) => {
         const { data, error } = await supabase.auth.signUp({ email, password, options: { data: metadata } });
         if (!error && data?.user) {
-          const role = data.user.user_metadata?.role || 'tenant_user';
+          const role = data.user.app_metadata?.role || data.user.user_metadata?.role || 'tenant_user';
           set({ user: data.user, session: data, userRole: role, loading: false, initialized: true });
         }
         return { error: error ? new Error(error.message) : null };
@@ -55,11 +55,11 @@ export const useAuth = create<AuthState>()(
         if (get().initialized) return;
 
         const { data: { session } } = await supabase.auth.getSession();
-        const role = session?.user?.user_metadata?.role || 'tenant_user';
+        const role = session?.user?.app_metadata?.role || session?.user?.user_metadata?.role || 'tenant_user';
         set({ session, user: session?.user ?? null, loading: false, initialized: true, userRole: role });
 
         supabase.auth.onAuthStateChange((_event: string, session: any) => {
-          const role = session?.user?.user_metadata?.role || 'tenant_user';
+          const role = session?.user?.app_metadata?.role || session?.user?.user_metadata?.role || 'tenant_user';
           set({ session, user: session?.user ?? null, loading: false, userRole: role });
         });
       },

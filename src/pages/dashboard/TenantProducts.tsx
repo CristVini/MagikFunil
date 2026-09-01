@@ -28,6 +28,8 @@ interface CatProduct {
   show_promo: boolean;
   profile?: string;
   profileLabel?: string;
+  position?: number;
+  kit_name?: string | null;
 }
 
 interface PlanInfo { name: string; max_products: number; allowsPromo: boolean; }
@@ -114,7 +116,12 @@ export function TenantProducts() {
     const parsed = numFields.includes(field)
       ? Math.round(parseFloat(value.replace(",", ".")) * 100) || null
       : value;
-    setProducts(prev => prev.map(p => p.id === id ? { ...p, [field]: parsed as any } : p));
+    // O nome do kit: atualiza name (exibido) e kit_name (persistido)
+    if (field === "kit_name") {
+      setProducts(prev => prev.map(p => p.id === id ? { ...p, name: parsed as string, kit_name: parsed as string } : p));
+    } else {
+      setProducts(prev => prev.map(p => p.id === id ? { ...p, [field]: parsed as any } : p));
+    }
     persistProduct(id, { [field]: parsed });
   };
 
