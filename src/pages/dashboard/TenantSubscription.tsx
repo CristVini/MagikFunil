@@ -32,6 +32,7 @@ export function TenantSubscription() {
   const [error, setError] = useState<string | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.rpc("get_tenant_subscription").then(({ data: res, error: err }: { data: any; error: any }) => {
@@ -77,14 +78,18 @@ export function TenantSubscription() {
 
   const isCurrent = (slug: string) => plan.slug === slug;
 
-  const upgrade = (slug: string) => {
-    // MVP: sem cobrança real ainda (checkout Stripe virá depois). Mostra simul trolagem.
+  const upgrade = async (slug: string) => {
+    // Cobrança manual: registra o pedido de troca de plano (aguarda pagamento)
     setSelectedPlan(slug);
     setProcessing(true);
-    setTimeout(() => {
-      setProcessing(false);
-      setSelectedPlan(null);
-    }, 900);
+    const { data, error } = await supabase.rpc("request_plan_change", { p_plan_slug: slug });
+    setProcessing(false);
+    setSelectedPlan(null);
+    if (error) {
+      setMessage(`Não foi possível solicitar: ${error.message}`);
+    } else {
+      setMessage(`Pedido para o plano ${slug} enviado! Nossa equipe entrará em contato para confirmar o pagamento.`);
+    }
   };
 
   return (
@@ -96,6 +101,12 @@ export function TenantSubscription() {
         </h1>
         <p className="text-stone-500 mt-1">Gerencie seu plano, limites e forma de pagamento</p>
       </div>
+
+      {message && (
+        <div className="rounded-2xl border bg-amber-50 border-amber-200 p-4 text-amber-800 text-sm">
+          {message}
+        </div>
+      )}
 
       {/* Plano atual */}
       <div className="bg-white rounded-2xl border border-stone-200 p-6">
