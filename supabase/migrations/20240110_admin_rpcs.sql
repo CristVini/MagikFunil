@@ -99,6 +99,7 @@ begin
       'price_monthly_cents', pl.price_monthly_cents,
       'max_products', pl.max_products,
       'max_clicks_month', pl.max_clicks_month,
+      'max_leads_per_month', coalesce(pl.max_clicks_month, 1000),
       'custom_domain', pl.custom_domain,
       'multi_user', pl.multi_user,
       'trial_days', pl.trial_days
