@@ -52,12 +52,25 @@ export function TenantProducts() {
     });
   }, []);
 
-  // Persiste uma atualização de tenant_product
+  // Persiste via RPC upsert_tenant_product (aplica trava tenant_can_promo no servidor
+  // e limite do plano). Monta payload completo a partir do produto atual + patch.
   const persistProduct = async (id: string, patch: Record<string, any>) => {
     if (!tenantId) return;
-    const { error } = await supabase
-      .from("tenant_products")
-      .upsert({ tenant_id: tenantId, product_id: id, ...patch });
+    const cur = products.find(p => p.id === id);
+    if (!cur) return;
+    const merged = { ...cur, ...patch };
+    const { error } = await supabase.rpc("upsert_tenant_product", {
+      p_tenant_id: tenantId,
+      p_product_id: id,
+      p_redirect_url: merged.redirect_url || "",
+      p_enabled: !!merged.enabled,
+      p_position: merged.position ?? 0,
+      p_kit_name: merged.kit_name ?? null,
+      p_support_text: merged.support_text ?? null,
+      p_price_cents: merged.price_cents ?? null,
+      p_promo_price_cents: merged.promo_price_cents ?? null,
+      p_show_promo: !!merged.show_promo,
+    });
     if (error) console.error("Erro ao salvar produto:", error.message);
   };
 
