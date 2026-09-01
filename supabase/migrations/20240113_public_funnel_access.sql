@@ -64,3 +64,18 @@ grant select on public.products to anon;
 grant select on public.template_profile_products to anon;
 grant insert, select, update on public.leads to anon;
 grant insert, select on public.events to anon;
+
+-- --- 3. Grants base para authenticated (admin via RLS is_admin(); tenant via policies own)
+grant select, insert, update, delete on public.templates to authenticated;
+grant select, insert, update, delete on public.profiles to authenticated;
+grant select, insert, update, delete on public.quiz_questions to authenticated;
+grant select, insert, update, delete on public.quiz_options to authenticated;
+grant select, insert, update, delete on public.products to authenticated;
+grant select, insert, update, delete on public.template_profile_products to authenticated;
+grant select, insert, update, delete on public.plans to authenticated;
+grant select, insert, update, delete on public.tenants to authenticated;
+grant select, insert, update, delete on public.subscriptions to authenticated;
+grant select, insert, update, delete on public.tenant_products to authenticated;
+grant select, insert, update, delete on public.leads to authenticated;
+grant select, insert, update, delete on public.events to authenticated;
+grant select, insert, update, delete on public.billing_events to authenticated;
