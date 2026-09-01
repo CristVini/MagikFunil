@@ -14,6 +14,7 @@ interface QuizState {
   tenantId: string | null;
   templateId: string | null;
   leadId: string | null;
+  tenant: any | null; // informações do tenant dono do funil (whatsapp p/ CTA)
 
   fetchQuiz: (templateSlug: string) => Promise<void>;
   answer: (profileIds: string[]) => void;
@@ -35,6 +36,7 @@ export const useQuiz = create<QuizState>((set, get) => ({
   answers: [],
   loading: true,
   error: null,
+  tenant: null,
   tenantId: null,
   templateId: null,
   leadId: null,
@@ -42,9 +44,9 @@ export const useQuiz = create<QuizState>((set, get) => ({
   fetchQuiz: async (templateSlug: string) => {
     set({ loading: true, error: null });
     try {
-      // Busca tudo do funil via RPC get_funnel (uma chamada)
+      // Busca tudo do funil via RPC get_funnel (resolvido por tenant ou template de exemplo)
       const { data: funnel, error: funnelError } = await supabase
-        .rpc("get_funnel", { p_template_slug: templateSlug });
+        .rpc("get_funnel", { p_slug: templateSlug });
 
       if (funnelError) throw funnelError;
       if (!funnel || funnel.error === "template_not_found") throw new Error("Template não encontrado");
@@ -64,7 +66,8 @@ export const useQuiz = create<QuizState>((set, get) => ({
         profiles: profilesMap,
         protocol,
         templateId: funnel.template?.id,
-        tenantId: null,
+        tenantId: funnel.tenant_id || null,
+        tenant: funnel.tenant || null,
         loading: false,
         error: null,
       });
@@ -115,23 +118,22 @@ export const useQuiz = create<QuizState>((set, get) => ({
 
       let finalLeadId = leadId;
       if (!finalLeadId && tenantId && isSupabaseConfigured) {
-        const { data: lead } = await supabase
+        // insert público: sem .select() (RETURNING exigiria SELECT policy de leads p/ anon)
+        const { error: leadErr } = await supabase
           .from("leads")
           .insert({
             tenant_id: tenantId,
-            template_id: templateId,
-            winner_profile: result.winner?.id,
-            scores,
-            answers,
-          })
-          .select("id")
-          .single();
-        finalLeadId = lead?.id;
+            winning_profile: result.winner?.id,
+            // grava respostas + scores dentro do jsonb answers (schema real do lead)
+            answers: { scores, answers },
+          });
+        if (leadErr) console.error("Erro ao gravar lead:", leadErr.message);
       }
 
       await get().trackEvent("quiz_complete", {
         winner_profile: result.winner?.id,
         scores,
+        lead_id: finalLeadId,
       });
     } catch (err) {
       console.error("Erro ao finalizar quiz:", err);
@@ -172,10 +174,12 @@ export const useQuiz = create<QuizState>((set, get) => ({
   trackEvent: async (kind: string, payload?: Record<string, any>) => {
     try {
       if (!isSupabaseConfigured) return; // sem backend: não rastreia (não trava o quiz)
+      const { tenantId, questions } = get();
       await supabase.from("events").insert({
         kind,
+        tenant_id: tenantId, // null quando funil é template de exemplo
         payload: payload || {},
-        quiz_id: get().questions[0]?.id,
+        quiz_id: questions[0]?.id,
       });
     } catch (err) {
       console.error("Erro ao rastrear evento:", err);

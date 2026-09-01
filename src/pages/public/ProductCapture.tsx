@@ -54,8 +54,7 @@ export function ProductCapture() {
       tenant_id: tenant.id,
       name: leadName,
       phone: leadPhone,
-      winner_profile: winner?.id || null,
-      winner_profile_name: winner?.name || null,
+      winning_profile: winner?.id || null,
       product_name: product?.name || null,
       source_url: window.location.href,
       referrer: document.referrer,
@@ -90,30 +89,32 @@ export function ProductCapture() {
       const result = useQuiz.getState().getResult();
       const winnerProfile = result.winner?.id;
 
-      const { data: tenantData } = await supabase
-        .from("tenants")
-        .select("id")
-        .eq("slug", slug)
+      let redirectUrl = product.redirect_url;
+      // O link real de venda é o do tenant_products (configurado pelo cliente)
+      const { data: tenantProd } = await supabase
+        .from("tenant_products")
+        .select("redirect_url")
+        .eq("tenant_id", tenant.id)
+        .eq("product_id", product.id)
         .single();
+      if (tenantProd?.redirect_url) redirectUrl = tenantProd.redirect_url;
 
-      if (tenantData) {
-        await supabase.from("events").insert({
-          tenant_id: tenantData.id,
-          kind: "product_click",
-          product_id: product.id,
-          profile_id: null,
-          source_url: window.location.href,
-          referrer: document.referrer,
-          payload: {
-            product_name: product.name,
-            product_category: product.category,
-            redirect_url: product.redirect_url,
-          },
-        });
-      }
+      await supabase.from("events").insert({
+        tenant_id: tenant.id,
+        kind: "product_click",
+        product_id: product.id,
+        profile_id: winnerProfile || null,
+        source_url: window.location.href,
+        referrer: document.referrer,
+        payload: {
+          product_name: product.name,
+          product_category: product.category,
+          redirect_url: redirectUrl,
+        },
+      });
 
-      if (product.redirect_url) {
-        window.location.href = product.redirect_url;
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
       } else {
         setError("Link de redirecionamento não configurado para este produto");
       }
