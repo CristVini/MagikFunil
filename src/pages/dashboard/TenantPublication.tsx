@@ -1,19 +1,40 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Globe, Copy, ExternalLink, AlertCircle, CheckCircle, WifiOff, Loader2 as LoaderIcon, Check } from "lucide-react";
-import { MOCK_TENANT, MOCK_PRODUCTS } from "./mockData";
+import { supabase } from "@lib/supabase";
+import { useAuth } from "@hooks/useAuth";
 
 // Face 2.6 — Publicação: subir/descer o funil, copiar link, validar produtos.
 export function TenantPublication() {
+  const { user } = useAuth();
+  const tenantId = user?.user_metadata?.tenant_id || user?.id;
+  const [tenant, setTenant] = useState<any>(null);
+  const [products, setProducts] = useState<any[]>([]);
   const [status, setStatus] = useState<"draft" | "published" | "paused">("draft");
+  const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [checking, setChecking] = useState(false);
 
+  useEffect(() => {
+    Promise.all([
+      supabase.rpc("get_tenant_overview"),
+      supabase.rpc("get_tenant_catalog"),
+    ]).then(([over, cat]: any) => {
+      if (over.data?.tenant) {
+        setTenant(over.data.tenant);
+        setStatus(over.data.tenant.status || "draft");
+      }
+      if (cat.data?.products) setProducts(cat.data.products);
+      setLoading(false);
+    });
+  }, []);
+
   const rootDomain = import.meta.env.VITE_ROOT_DOMAIN || "seudominio.com";
-  const finalUrl = `https://${MOCK_TENANT.slug}.${rootDomain}`;
+  const slug = tenant?.slug || "";
+  const finalUrl = `https://${slug}.${rootDomain}`;
   const isPublished = status === "published";
 
   // Validação: produtos ativos precisam de link de venda
-  const activeWithoutLink = MOCK_PRODUCTS.filter(p => p.enabled && !p.redirect_url);
+  const activeWithoutLink = products.filter(p => p.enabled && !p.redirect_url);
   const canPublish = activeWithoutLink.length === 0;
 
   const copyLink = () => {
@@ -22,13 +43,23 @@ export function TenantPublication() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const changeStatus = (s: "draft" | "published" | "paused") => {
+  const changeStatus = async (s: "draft" | "published" | "paused") => {
     setChecking(true);
-    setTimeout(() => {
-      setStatus(s);
-      setChecking(false);
-    }, 400);
+    await supabase.from("tenants").update({ status: s }).eq("id", tenantId);
+    setStatus(s);
+    setChecking(false);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-32" style={{ fontFamily: "var(--font-sans)" }}>
+        <div className="flex flex-col items-center gap-3">
+          <LoaderIcon className="w-8 h-8 text-amber-500 animate-spin" />
+          <p className="text-stone-500">Carregando publicação...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6" style={{ fontFamily: "var(--font-sans)" }}>

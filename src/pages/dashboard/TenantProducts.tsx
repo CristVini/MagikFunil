@@ -1,62 +1,122 @@
-import { useMemo, useState } from "react";
-import { Link2, ExternalLink, Package, ShieldAlert, CheckCircle2, Loader2, Lock, Crown } from "lucide-react";
-import { MOCK_PRODUCTS, MOCK_PLANS, MOCK_PLAN } from "./mockData";
+import { useEffect, useMemo, useState } from "react";
+import { Link2, ExternalLink, Package, ShieldAlert, CheckCircle2, Loader2, Lock } from "lucide-react";
+import { supabase } from "@lib/supabase";
+import { useAuth } from "@hooks/useAuth";
 
 // Face 2.3 — Produtos: o cliente ativa itens do catálogo pré-criado e
 // cola o link de venda de cada um, agrupados pelo protocolo do funil
 // (2 produtos + 1 kit por perfil). Limite é o max_products do plano.
-const KITS_STORAGE_KEY = "magikfunil-kits"; // nome + texto de apoio dos kits (reflete no funil)
+// Dados 100% reais vindos de get_tenant_catalog; grava em tenant_products.
 
-function loadKitsOverrides() {
-  try {
-    const raw = localStorage.getItem(KITS_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
-// Formata centavos -> "119,90" (sem casas decimais desnecessárias); vazio se null
 function formatPrice(cents?: number | null): string {
   if (cents == null) return "";
   const reais = (cents / 100).toFixed(2).replace(".", ",");
   return reais.endsWith(",00") ? reais.slice(0, -3) : reais;
 }
 
+interface CatProduct {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  is_kit: boolean;
+  enabled: boolean;
+  redirect_url: string;
+  support_text?: string;
+  price_cents?: number | null;
+  promo_price_cents?: number | null;
+  show_promo: boolean;
+  profile?: string;
+  profileLabel?: string;
+}
+
+interface PlanInfo { name: string; max_products: number; allowsPromo: boolean; }
+
 export function TenantProducts() {
-  const [products, setProducts] = useState(MOCK_PRODUCTS);
-  const [plan, setPlan] = useState(MOCK_PLAN); // demo: trocar pra Enterprise destrava a promo
+  const { user } = useAuth();
+  const tenantId = user?.user_metadata?.tenant_id || user?.id;
+  const [products, setProducts] = useState<CatProduct[]>([]);
+  const [plan, setPlan] = useState<PlanInfo>({ name: "", max_products: 0, allowsPromo: false });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [savingUrl, setSavingUrl] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  // Sprint: kits com nome/texto de apoio/preços personalizados (persistidos)
-  const [kitOverrides, setKitOverrides] = useState<Record<string, { kit_name?: string; support_text?: string; price_cents?: number; promo_price_cents?: number }>>(loadKitsOverrides);
+  useEffect(() => {
+    supabase.rpc("get_tenant_catalog").then(({ data, error: err }: { data: any; error: any }) => {
+      if (err) { setError(err.message); setLoading(false); return; }
+      setProducts(data?.products || []);
+      setPlan(data?.plan || { name: "", max_products: 0, allowsPromo: false });
+      setLoading(false);
+    });
+  }, []);
 
-  const persistKits = (next: Record<string, { kit_name?: string; support_text?: string; price_cents?: number; promo_price_cents?: number }>) => {
-    setKitOverrides(next);
-    localStorage.setItem(KITS_STORAGE_KEY, JSON.stringify(next));
+  // Persiste uma atualização de tenant_product
+  const persistProduct = async (id: string, patch: Record<string, any>) => {
+    if (!tenantId) return;
+    const { error } = await supabase
+      .from("tenant_products")
+      .upsert({ tenant_id: tenantId, product_id: id, ...patch });
+    if (error) console.error("Erro ao salvar produto:", error.message);
   };
 
+  // Ativa/desativa (e insere tenant_product quando o tenant ainda não o tem)
+  const toggleEnabled = (id: string) => {
+    const target = products.find(p => p.id === id);
+    if (!target) return;
+    if (!target.enabled && activeCount >= plan.max_products && plan.max_products > 0) {
+      showToast(`Seu plano ${plan.name} permite até ${plan.max_products} produtos ativos. Faça upgrade para ativar mais.`);
+      return;
+    }
+    const nextEnabled = !target.enabled;
+    setProducts(prev => prev.map(p => p.id === id ? { ...p, enabled: nextEnabled } : p));
+    persistProduct(id, { enabled: nextEnabled });
+    showToast(target.enabled ? "Item desativado do funil" : (target.is_kit ? "Kit ativado no funil" : "Produto ativado no funil"));
+  };
+
+  const setUrl = (id: string, url: string) => {
+    setProducts(prev => prev.map(p => p.id === id ? { ...p, redirect_url: url } : p));
+  };
+
+  const saveUrl = (id: string) => {
+    const p = products.find(x => x.id === id);
+    if (!p) return;
+    setSavingUrl(id);
+    persistProduct(id, { redirect_url: p.redirect_url });
+    setTimeout(() => { setSavingUrl(null); showToast("Link de venda salvo"); }, 400);
+  };
+
+  const setShowPromo = (id: string) => {
+    const p = products.find(x => x.id === id);
+    if (!p) return;
+    setProducts(prev => prev.map(x => x.id === id ? { ...x, show_promo: !x.show_promo } : x));
+    persistProduct(id, { show_promo: !p.show_promo });
+    showToast("Preferência de promoção atualizada");
+  };
+
+  // Edição de kit (nome, apoio, preços) — persiste no banco
   const setKitField = (id: string, field: "kit_name" | "support_text" | "price_cents" | "promo_price_cents", value: string) => {
     const numFields = ["price_cents", "promo_price_cents"];
     const parsed = numFields.includes(field)
       ? Math.round(parseFloat(value.replace(",", ".")) * 100) || null
       : value;
-    persistKits({ ...kitOverrides, [id]: { ...kitOverrides[id], [field]: parsed } });
+    setProducts(prev => prev.map(p => p.id === id ? { ...p, [field]: parsed as any } : p));
+    persistProduct(id, { [field]: parsed });
   };
 
-  const maxProducts = plan.max_products;
+  const maxProducts = plan.max_products || 0;
   const activeCount = products.filter(p => p.enabled).length;
-  const atLimit = activeCount >= maxProducts;
-  const enabledPromo = plan.allowsPromo; // recurso premium: promoção exclusiva do Enterprise
+  const atLimit = maxProducts > 0 && activeCount >= maxProducts;
+  const enabledPromo = plan.allowsPromo;
 
-  // Agrupa por perfil preservando a ordem do mock (protocolo do funil)
   const groups = useMemo(() => {
-    const map = new Map<string, { label: string; items: typeof products }>();
+    const map = new Map<string, { label: string; items: CatProduct[] }>();
     products.forEach(p => {
-      if (!map.has(p.profile)) map.set(p.profile, { label: p.profileLabel, items: [] });
-      map.get(p.profile)!.items.push(p);
+      const key = p.profile || "outros";
+      const label = p.profileLabel || "Outros";
+      if (!map.has(key)) map.set(key, { label, items: [] });
+      map.get(key)!.items.push(p);
     });
     return Array.from(map.values());
   }, [products]);
@@ -75,34 +135,25 @@ export function TenantProducts() {
     setTimeout(() => setToast(null), 2500);
   };
 
-  const toggleEnabled = (id: string) => {
-    const target = products.find(p => p.id === id);
-    if (!target) return;
-    // Não pode ativar além do limite do plano
-    if (!target.enabled && atLimit) {
-      showToast(`Seu plano ${plan.name} permite até ${maxProducts} produtos ativos. Faça upgrade para ativar mais.`);
-      return;
-    }
-    setProducts(prev => prev.map(p => p.id === id ? { ...p, enabled: !p.enabled } : p));
-    showToast(target.enabled ? "Item desativado do funil" : (target.is_kit ? "Kit ativado no funil" : "Produto ativado no funil"));
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-32" style={{ fontFamily: "var(--font-sans)" }}>
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
+          <p className="text-stone-500">Carregando catálogo...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const setUrl = (id: string, url: string) => {
-    setProducts(prev => prev.map(p => p.id === id ? { ...p, redirect_url: url } : p));
-  };
-
-  const saveUrl = (id: string) => {
-    setSavingUrl(id);
-    setTimeout(() => {
-      setSavingUrl(null);
-      showToast("Link de venda salvo");
-    }, 500);
-  };
-
-  const setShowPromo = (id: string) => {
-    setProducts(prev => prev.map(p => p.id === id ? { ...p, show_promo: !p.show_promo } : p));
-    showToast("Preferência de promoção atualizada");
-  };
+  if (error) {
+    return (
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center" style={{ fontFamily: "var(--font-sans)" }}>
+        <p className="font-medium text-red-700">Não foi possível carregar os produtos.</p>
+        <p className="text-sm text-red-600 mt-1">{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6" style={{ fontFamily: "var(--font-sans)" }}>
@@ -123,29 +174,6 @@ export function TenantProducts() {
           <p className="text-stone-500 mt-1">O protocolo que o quiz recomenda — ative cada item e cole o link de venda</p>
         </div>
 
-        {/* Seletor de plano (demo) — trocar pra Enterprise destrava a promoção */}
-        <div className="flex items-center gap-2 bg-white rounded-2xl border border-stone-200 p-1.5 shadow-sm">
-          {MOCK_PLANS.map((p) => {
-            const isActive = plan.name === p.name;
-            return (
-              <button
-                key={p.name}
-                onClick={() => setPlan(p)}
-                className={`px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 transition-all ${
-                  isActive
-                    ? p.name === "Enterprise"
-                      ? "bg-stone-950 text-amber-400 shadow"
-                      : "bg-amber-500 text-white shadow"
-                    : "text-stone-500 hover:bg-stone-100"
-                }`}
-              >
-                {p.name === "Enterprise" && <Crown size={14} />}
-                {p.name}
-              </button>
-            );
-          })}
-        </div>
-
         {/* Indicador de limite do plano */}
         <div className="px-4 py-3 bg-white rounded-2xl border border-stone-200 flex items-center gap-3">
           <Package size={20} className="text-amber-500" />
@@ -156,7 +184,7 @@ export function TenantProducts() {
             <div className="w-32 h-1.5 bg-stone-100 rounded-full mt-1 overflow-hidden">
               <div
                 className="h-full rounded-full transition-all"
-                style={{ width: `${(activeCount / maxProducts) * 100}%`, backgroundColor: atLimit ? "#EF4444" : "#F59E0B" }}
+                style={{ width: `${maxProducts ? (activeCount / maxProducts) * 100 : 0}%`, backgroundColor: atLimit ? "#EF4444" : "#F59E0B" }}
               />
             </div>
           </div>
@@ -213,30 +241,26 @@ export function TenantProducts() {
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
                           <span className="px-2 py-0.5 bg-violet-100 text-violet-700 rounded-full text-[10px] font-bold uppercase tracking-wide shrink-0">Kit</span>
-                          <span className="px-2 py-0.5 bg-stone-100 text-stone-500 rounded-full text-[10px] capitalize shrink-0">{p.category.replace("_", " ")}</span>
                         </div>
-                        {/* Nome do kit (editável) */}
                         <div>
                           <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-0.5">Nome do kit</label>
                           <input
                             type="text"
-                            value={kitOverrides[p.id]?.kit_name ?? p.name}
+                            value={p.name}
                             onChange={e => setKitField(p.id, "kit_name", e.target.value)}
                             className="w-full px-3 py-2 rounded-xl text-sm font-semibold text-stone-950 bg-white border border-stone-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
                           />
                         </div>
-                        {/* Texto de apoio (editável) */}
                         <div>
                           <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-0.5">Texto de apoio</label>
                           <textarea
                             rows={2}
-                            value={kitOverrides[p.id]?.support_text ?? p.support_text ?? ""}
+                            value={p.support_text || ""}
                             onChange={e => setKitField(p.id, "support_text", e.target.value)}
                             placeholder={p.support_text}
                             className="w-full px-3 py-2 rounded-xl text-xs text-stone-600 bg-white border border-stone-200 focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
                           />
                         </div>
-                        {/* Preços do kit (editáveis — recurso premium Enterprise) */}
                         <div className={`grid grid-cols-2 gap-2 rounded-xl p-2.5 ${plan.allowsPromo ? "bg-white border border-stone-200" : "bg-stone-50 border border-dashed border-stone-300"}`}>
                           <div>
                             <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-0.5">Preço normal</label>
@@ -245,7 +269,7 @@ export function TenantProducts() {
                               <input
                                 type="text"
                                 inputMode="decimal"
-                                value={formatPrice(kitOverrides[p.id]?.price_cents ?? p.price_cents)}
+                                value={formatPrice(p.price_cents)}
                                 onChange={e => setKitField(p.id, "price_cents", e.target.value)}
                                 disabled={!plan.allowsPromo}
                                 placeholder="119,90"
@@ -262,7 +286,7 @@ export function TenantProducts() {
                               <input
                                 type="text"
                                 inputMode="decimal"
-                                value={formatPrice(kitOverrides[p.id]?.promo_price_cents ?? p.promo_price_cents)}
+                                value={formatPrice(p.promo_price_cents)}
                                 onChange={e => setKitField(p.id, "promo_price_cents", e.target.value)}
                                 disabled={!plan.allowsPromo}
                                 placeholder="89,90"
@@ -276,21 +300,19 @@ export function TenantProducts() {
                             </p>
                           )}
                         </div>
-                        <p className="text-xs text-stone-400 mt-0.5">
-                          De <span className="text-amber-600 font-medium">{p.profileLabel}</span>
-                          {p.clicks > 0 && <span className="ml-2">• {p.clicks} cliques</span>}
-                        </p>
+                        {plan.allowsPromo && (
+                          <p className="text-xs text-stone-400 mt-0.5">De <span className="text-amber-600 font-medium">{p.profileLabel}</span></p>
+                        )}
                       </div>
                     ) : (
                       <div>
                         <div className="flex items-center gap-2">
                           <h3 className="font-semibold text-stone-950 truncate">{p.name}</h3>
-                          <span className="px-2 py-0.5 bg-stone-100 text-stone-500 rounded-full text-[10px] capitalize shrink-0">{p.category.replace("_", " ")}</span>
+                          <span className="px-2 py-0.5 bg-stone-100 text-stone-500 rounded-full text-[10px] capitalize shrink-0">{p.category?.replace("_", " ")}</span>
                         </div>
                         <p className="text-xs text-stone-500 mt-1">{p.description}</p>
                         <p className="text-xs text-stone-400 mt-0.5">
                           De <span className="text-amber-600 font-medium">{p.profileLabel}</span>
-                          {p.clicks > 0 && <span className="ml-2">• {p.clicks} cliques</span>}
                         </p>
                       </div>
                     )}
@@ -349,7 +371,6 @@ export function TenantProducts() {
                     </span>
                   </label>
                 ) : (
-                  // Travado — disponível apenas no Enterprise (vitrine de upgrade)
                   <button
                     onClick={() => showToast("Exibir promoção é um recurso do plano Enterprise.")}
                     className="shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-stone-300 text-stone-400 hover:border-violet-400 hover:text-violet-600 transition-colors group"
