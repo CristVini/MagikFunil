@@ -109,3 +109,28 @@ end;
 $function$;
 
 grant execute on function public.get_admin_plans() to authenticated, anon;
+
+-- Template completo para o editor de funis (perfis + quiz/opções + produtos).
+-- products de cada perfil retorna array de {id, name} para vínculo/edição.
+create or replace function public.get_admin_template(p_template_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $function$
+declare v_template_id uuid := p_template_id;
+begin
+  if not public.is_admin() then raise exception 'Acesso negado: requer role admin'; end if;
+  return jsonb_build_object(
+    'template', (select jsonb_build_object('id', id, 'name', name, 'slug', slug, 'niche', niche, 'description', description) from templates where id = v_template_id),
+    'profiles', coalesce((select jsonb_agg(jsonb_build_object(
+        'id', p.id, 'name', p.name, 'archetype', p.archetype, 'color', p.color, 'scientific_basis', p.scientific_basis, 'description', p.description, 'expected_effect', p.expected_effect, 'references', p.references, 'display_order', p.display_order,
+        'products', coalesce((select jsonb_agg(jsonb_build_object('id', pr.id, 'name', pr.name)) from template_profile_products tpp join products pr on pr.id = tpp.product_id where tpp.profile_id = p.id), '[]'::jsonb)
+      ) order by p.display_order) from profiles p where p.template_id = v_template_id), '[]'::jsonb),
+    'questions', coalesce((select jsonb_agg(jsonb_build_object('id', q.id, 'text', q.text, 'position', q.position, 'options', coalesce((select jsonb_agg(jsonb_build_object('id', o.id, 'text', o.text, 'profile_ids', o.profile_ids, 'position', o.position)) from quiz_options o where o.question_id = q.id order by o.position), '[]'::jsonb)) order by q.position) from quiz_questions q where q.template_id = v_template_id), '[]'::jsonb),
+    'products', coalesce((select jsonb_agg(jsonb_build_object('id', pr.id, 'name', pr.name, 'category', pr.category, 'description', pr.description, 'is_kit', pr.is_kit, 'display_order', pr.display_order) order by pr.display_order) from products pr where pr.template_id = v_template_id), '[]'::jsonb)
+  );
+end;
+$function$;
+
+grant execute on function public.get_admin_template(uuid) to authenticated, anon;
