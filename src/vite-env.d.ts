@@ -7,7 +7,6 @@ interface ImportMetaEnv {
   readonly VITE_APP_URL: string;
   readonly VITE_ROOT_DOMAIN: string;
   readonly VITE_ENABLE_ANALYTICS: string;
-  readonly VITE_ENABLE_MOCK_DATA: string;
 }
 
 interface ImportMeta {

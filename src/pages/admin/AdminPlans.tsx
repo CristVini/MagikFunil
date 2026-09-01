@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { CreditCard, Crown, Plus, Edit, Trash2, Check, HandCoins } from "lucide-react";
-import { MOCK_PLANS, MOCK_SUBSCRIPTIONS, MOCK_BILLING_EVENTS, AdminPlan } from "./mockData";
+import { useEffect, useState } from "react";
+import { CreditCard, Crown, Plus, Edit, Trash2, Check, HandCoins, Loader2 } from "lucide-react";
+import { supabase } from "@lib/supabase";
 import { formatCurrency } from "@lib/utils";
 import { cn } from "@lib/utils";
 
@@ -23,6 +23,11 @@ const EVENT_STYLE: Record<string, string> = {
   invoice_paid: "bg-green-500/10 text-green-600", invoice_failed: "bg-red-500/10 text-red-600",
   plan_change: "bg-amber-500/10 text-amber-600", refund: "bg-stone-100 text-stone-600",
 };
+
+interface AdminPlan {
+  id: string; name: string; price_monthly_cents: number; max_products: number;
+  max_leads_per_month: number; custom_domain: boolean; trial_days: number; slug?: string;
+}
 
 function PlanModal({ initial, onClose, onSave }: { initial: AdminPlan | null; onClose: () => void; onSave: (p: AdminPlan) => void }) {
   const [form, setForm] = useState({
@@ -88,7 +93,6 @@ function PlanModal({ initial, onClose, onSave }: { initial: AdminPlan | null; on
               max_leads_per_month: form.max_leads_per_month,
               custom_domain: form.custom_domain,
               trial_days: form.trial_days,
-              features: initial?.features || [],
             });
           }} className="px-6 py-3 bg-amber-500 text-stone-950 rounded-xl font-semibold hover:bg-amber-400">Salvar</button>
         </div>
@@ -98,20 +102,67 @@ function PlanModal({ initial, onClose, onSave }: { initial: AdminPlan | null; on
 }
 
 export function AdminPlans() {
-  const [plans, setPlans] = useState<AdminPlan[]>(MOCK_PLANS);
+  const [plans, setPlans] = useState<AdminPlan[]>([]);
+  const [subscriptions, setSubscriptions] = useState<any[]>([]);
+  const [billingEvents, setBillingEvents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<AdminPlan | null>(null);
   const [tab, setTab] = useState<"planos" | "assinaturas" | "billing">("planos");
 
-  const handleSave = (p: AdminPlan) => {
-    setPlans(prev => editing ? prev.map(x => x.id === p.id ? p : x) : [...prev, p]);
-    setShowModal(false); setEditing(null);
+  const load = () => {
+    Promise.all([supabase.rpc("get_admin_data"), supabase.rpc("get_admin_plans")]).then(([d, p]: any) => {
+      if (d.data) {
+        if (d.data.subscriptions) setSubscriptions(d.data.subscriptions);
+        if (d.data.billing_events) setBillingEvents(d.data.billing_events);
+      }
+      if (p.data) setPlans(p.data);
+      setLoading(false);
+    });
   };
 
-  const handleDelete = (id: string) => {
+  useEffect(() => { load(); }, []);
+
+  const handleSave = async (p: AdminPlan) => {
+    const isNew = !editing?.id || String(p.id).startsWith("plan-");
+    if (isNew) {
+      const { data, error } = await supabase.from("plans").insert({
+        name: p.name,
+        slug: p.name.toLowerCase().replace(/[^a-z0-9-]/g, "-"),
+        price_monthly_cents: p.price_monthly_cents,
+        max_products: p.max_products,
+        max_clicks_month: p.max_leads_per_month * 2,
+        custom_domain: p.custom_domain,
+        trial_days: p.trial_days,
+      }).select("id").single();
+      if (error) alert("Erro: " + error.message);
+      else { setShowModal(false); setEditing(null); load(); }
+    } else {
+      const { error } = await supabase.from("plans").update({
+        name: p.name, price_monthly_cents: p.price_monthly_cents, max_products: p.max_products,
+        custom_domain: p.custom_domain, trial_days: p.trial_days,
+      }).eq("id", p.id);
+      if (error) alert("Erro: " + error.message);
+      else { setShowModal(false); setEditing(null); load(); }
+    }
+  };
+
+  const handleDelete = async (id: string) => {
     if (!confirm("Excluir este plano?")) return;
+    await supabase.from("plans").delete().eq("id", id);
     setPlans(prev => prev.filter(x => x.id !== id));
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-32">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
+          <p className="text-stone-500">Carregando planos e billing...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6" style={{ fontFamily: 'var(--font-sans)' }}>
@@ -183,22 +234,22 @@ export function AdminPlans() {
                 <th className="px-6 py-3 text-left text-xs font-semibold text-stone-500 uppercase tracking-wider">Renovação</th>
               </tr></thead>
               <tbody className="divide-y divide-stone-100">
-                {MOCK_SUBSCRIPTIONS.map(s => {
-                  const plan = MOCK_PLANS.find(p => p.id === s.plan_id);
-                  return (
-                    <tr key={s.tenant_id} className="hover:bg-stone-50">
-                      <td className="px-6 py-4"><p className="font-medium text-stone-950 text-sm">{s.tenant_name}</p></td>
-                      <td className="px-6 py-4"><span className="px-2 py-1 bg-stone-100 text-stone-700 rounded-full text-xs font-medium">{plan?.name}</span></td>
-                      <td className="px-6 py-4"><span className={cn("px-2 py-1 rounded-full text-xs font-medium", STATUS_STYLE[s.status])}>{STATUS_LABEL[s.status]}</span></td>
-                      <td className="px-6 py-4">
-                        <span className="flex items-center gap-1.5 text-sm text-stone-600">
-                          <HandCoins size={14} className="text-stone-400" /> {s.provider === "manual" ? "Manual" : "Stripe"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-stone-500">{new Date(s.current_period_end).toLocaleDateString('pt-BR')}</td>
-                    </tr>
-                  );
-                })}
+                {subscriptions.length === 0 && (
+                  <tr><td colSpan={5} className="px-6 py-12 text-center text-stone-500">Nenhuma assinatura ativa</td></tr>
+                )}
+                {subscriptions.map((s, i) => (
+                  <tr key={s.tenant_id + i} className="hover:bg-stone-50">
+                    <td className="px-6 py-4"><p className="font-medium text-stone-950 text-sm">{s.tenant_name}</p></td>
+                    <td className="px-6 py-4"><span className="px-2 py-1 bg-stone-100 text-stone-700 rounded-full text-xs font-medium">{s.plan_name}</span></td>
+                    <td className="px-6 py-4"><span className={cn("px-2 py-1 rounded-full text-xs font-medium", STATUS_STYLE[s.status] || STATUS_STYLE.active)}>{STATUS_LABEL[s.status] || s.status}</span></td>
+                    <td className="px-6 py-4">
+                      <span className="flex items-center gap-1.5 text-sm text-stone-600">
+                        <HandCoins size={14} className="text-stone-400" /> {s.provider === "manual" ? "Manual" : "Stripe"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-stone-500">{s.current_period_end ? new Date(s.current_period_end).toLocaleDateString('pt-BR') : "—"}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -212,13 +263,14 @@ export function AdminPlans() {
             <span className="text-xs text-stone-400">Modo: cobrança manual (Stripe no futuro)</span>
           </div>
           <div className="divide-y divide-stone-100">
-            {MOCK_BILLING_EVENTS.map(e => (
+            {billingEvents.length === 0 && <p className="px-6 py-8 text-center text-stone-500 text-sm">Nenhum evento de cobrança.</p>}
+            {billingEvents.map(e => (
               <div key={e.id} className="px-6 py-4 flex items-center gap-4 hover:bg-stone-50">
-                <span className={cn("w-8 h-8 rounded-xl flex items-center justify-center shrink-0", EVENT_STYLE[e.type])}>
+                <span className={cn("w-8 h-8 rounded-xl flex items-center justify-center shrink-0", EVENT_STYLE[e.type] || "bg-stone-100")}>
                   <HandCoins size={15} />
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-stone-900">{EVENT_LABEL[e.type]} — {e.tenant_name}</p>
+                  <p className="text-sm font-medium text-stone-900">{EVENT_LABEL[e.type] || e.type} — {e.tenant_name}</p>
                   <p className="text-xs text-stone-500">{e.description}</p>
                 </div>
                 <div className="text-right shrink-0">

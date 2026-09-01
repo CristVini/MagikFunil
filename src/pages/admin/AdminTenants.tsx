@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
-import { Building2, Plus, Search, Edit, Trash2, Mail, Eye } from "lucide-react";
-import { MOCK_TENANTS, MOCK_PLANS } from "./mockData";
+import React, { useEffect, useState } from "react";
+import { Building2, Plus, Search, Edit, Trash2, Mail, Eye, Loader2 } from "lucide-react";
+import { supabase } from "@lib/supabase";
 import { formatCurrency } from "@lib/utils";
 import { cn } from "@lib/utils";
 
@@ -14,6 +14,7 @@ interface TenantRow {
   name: string;
   slug: string;
   plan_id: string;
+  plan_name?: string;
   delivery_status: DeliveryStatus;
   billing_status: BillingStatus;
   created_at: string;
@@ -21,9 +22,6 @@ interface TenantRow {
   conversion: number;
   email: string;
 }
-
-const planName = (id: string) => MOCK_PLANS.find(p => p.id === id)?.name || "—";
-const planPrice = (id: string) => MOCK_PLANS.find(p => p.id === id)?.price_monthly_cents || 0;
 
 const DELIVERY_LABEL: Record<DeliveryStatus, string> = { active: "Ativo", paused: "Pausado", blocked: "Bloqueado" };
 const BILLING_LABEL: Record<BillingStatus, string> = { active: "Pago", unpaid: "Em atraso", trial: "Trial" };
@@ -38,13 +36,16 @@ const BILLING_STYLE: Record<BillingStatus, string> = {
   trial: "bg-purple-500/10 text-purple-600",
 };
 
+// Planos reais (carregados de get_admin_plans)
+let plansCache: any[] = [];
+
 // Modal de criar/editar tenant
 function TenantModal({ initial, onClose, onSave }: { initial: TenantRow | null; onClose: () => void; onSave: (t: TenantRow) => void }) {
   const [form, setForm] = useState({
     name: initial?.name || "",
     slug: initial?.slug || "",
     email: initial?.email || "",
-    plan_id: initial?.plan_id || MOCK_PLANS[0].id,
+    plan_id: initial?.plan_id || plansCache[0]?.id || "",
     delivery_status: initial?.delivery_status || "active",
     billing_status: initial?.billing_status || "trial",
   });
@@ -52,7 +53,7 @@ function TenantModal({ initial, onClose, onSave }: { initial: TenantRow | null; 
   const submit = () => {
     const slug = form.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-") || "tenant";
     onSave({
-      id: initial?.id || `tenant-${Date.now()}`,
+      id: initial?.id || "",
       name: form.name || "Novo Tenant",
       slug,
       plan_id: form.plan_id,
@@ -97,7 +98,7 @@ function TenantModal({ initial, onClose, onSave }: { initial: TenantRow | null; 
             <label className="block text-sm font-medium text-stone-700 mb-1">Plano</label>
             <select value={form.plan_id} onChange={e => setForm({ ...form, plan_id: e.target.value })}
               className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-500">
-              {MOCK_PLANS.map(p => <option key={p.id} value={p.id}>{p.name} — {formatCurrency(p.price_monthly_cents / 100)}/mês</option>)}
+              {plansCache.map(p => <option key={p.id} value={p.id}>{p.name} — {formatCurrency(p.price_monthly_cents / 100)}/mês</option>)}
             </select>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -120,9 +121,6 @@ function TenantModal({ initial, onClose, onSave }: { initial: TenantRow | null; 
               </select>
             </div>
           </div>
-          <p className="text-xs text-stone-500 bg-stone-50 rounded-xl p-3">
-            Entrega e pagamento são estados <strong>independentes</strong>: é possível, por exemplo, um funil ativo com pagamento em atraso.
-          </p>
         </div>
         <div className="flex justify-end gap-3 mt-6">
           <button onClick={onClose} className="px-6 py-3 bg-stone-100 text-stone-700 rounded-xl font-medium hover:bg-stone-200 transition-colors">Cancelar</button>
@@ -134,11 +132,25 @@ function TenantModal({ initial, onClose, onSave }: { initial: TenantRow | null; 
 }
 
 export function AdminTenants() {
-  const [tenants, setTenants] = useState<TenantRow[]>(MOCK_TENANTS as any);
+  const [tenants, setTenants] = useState<TenantRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | DeliveryStatus>("all");
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<TenantRow | null>(null);
+
+  const load = () => {
+    Promise.all([
+      supabase.rpc("get_admin_data"),
+      supabase.rpc("get_admin_plans"),
+    ]).then(([data, plans]: any) => {
+      if (data.data?.tenants) setTenants(data.data.tenants);
+      if (plans.data) plansCache = plans.data;
+      setLoading(false);
+    });
+  };
+
+  useEffect(() => { load(); }, []);
 
   const filtered = tenants.filter(t => {
     const q = search.toLowerCase();
@@ -147,16 +159,30 @@ export function AdminTenants() {
     return matchesSearch && matchesStatus;
   });
 
-  const handleSave = (t: TenantRow) => {
-    setTenants(prev => editing ? prev.map(x => x.id === t.id ? t : x) : [t, ...prev]);
-    setShowModal(false);
-    setEditing(null);
+  const handleSave = async (t: TenantRow) => {
+    if (editing?.id) {
+      const { error } = await supabase.from("tenants").update({ name: t.name, slug: t.slug, status: t.delivery_status }).eq("id", t.id);
+      if (!error) await supabase.from("subscriptions").update({ plan_id: t.plan_id, status: t.billing_status }).eq("tenant_id", t.id);
+    }
+    setShowModal(false); setEditing(null); load();
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (!confirm("Remover este tenant?")) return;
+    await supabase.from("tenants").delete().eq("id", id);
     setTenants(prev => prev.filter(x => x.id !== id));
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-32">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
+          <p className="text-stone-500">Carregando tenants...</p>
+        </div>
+      </div>
+    );
+  }
 
   const counts = {
     total: tenants.length,
@@ -231,43 +257,45 @@ export function AdminTenants() {
             <tbody className="divide-y divide-stone-100">
               {filtered.length === 0 ? (
                 <tr><td colSpan={6} className="px-6 py-12 text-center text-stone-500">Nenhum tenant encontrado</td></tr>
-              ) : filtered.map(t => (
-                <tr key={t.id} className="hover:bg-stone-50">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-stone-100 flex items-center justify-center text-stone-500">
-                        <Building2 size={18} />
+              ) : filtered.map(t => {
+                const plan = plansCache.find(p => p.id === t.plan_id);
+                return (
+                  <tr key={t.id} className="hover:bg-stone-50">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-stone-100 flex items-center justify-center text-stone-500">
+                          <Building2 size={18} />
+                        </div>
+                        <div>
+                          <p className="font-medium text-stone-950 text-sm">{t.name}</p>
+                          <p className="text-xs text-stone-500">{t.slug}.seudominio.com</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-stone-950 text-sm">{t.name}</p>
-                        <p className="text-xs text-stone-500">{t.slug}.seudominio.com</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="px-2 py-1 bg-stone-100 text-stone-700 rounded-full text-xs font-medium">{plan?.name || t.plan_name || "—"}</span>
+                      {plan && <p className="text-xs text-stone-400 mt-1">{formatCurrency(plan.price_monthly_cents / 100)}/mês</p>}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={cn("px-2 py-1 rounded-full text-xs font-medium", DELIVERY_STYLE[t.delivery_status])}>{DELIVERY_LABEL[t.delivery_status]}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={cn("px-2 py-1 rounded-full text-xs font-medium", BILLING_STYLE[t.billing_status])}>{BILLING_LABEL[t.billing_status]}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="text-sm font-medium text-stone-950">{t.leads.toLocaleString('pt-BR')}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex justify-end gap-1">
+                        <a href={`/f/${t.slug}`} target="_blank" rel="noreferrer" title="Ver funil" className="p-2 text-stone-400 hover:text-blue-500 rounded-lg transition-colors"><Eye size={17} /></a>
+                        <a href={`mailto:${t.email}`} title="E-mail" className="p-2 text-stone-400 hover:text-blue-500 rounded-lg transition-colors"><Mail size={17} /></a>
+                        <button onClick={() => { setEditing(t); setShowModal(true); }} title="Editar" className="p-2 text-stone-400 hover:text-amber-500 rounded-lg transition-colors"><Edit size={17} /></button>
+                        <button onClick={() => handleDelete(t.id)} title="Remover" className="p-2 text-stone-400 hover:text-red-500 rounded-lg transition-colors"><Trash2 size={17} /></button>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="px-2 py-1 bg-stone-100 text-stone-700 rounded-full text-xs font-medium">{planName(t.plan_id)}</span>
-                    {planPrice(t.plan_id) > 0 && <p className="text-xs text-stone-400 mt-1">{formatCurrency(planPrice(t.plan_id) / 100)}/mês</p>}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={cn("px-2 py-1 rounded-full text-xs font-medium", DELIVERY_STYLE[t.delivery_status])}>{DELIVERY_LABEL[t.delivery_status]}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={cn("px-2 py-1 rounded-full text-xs font-medium", BILLING_STYLE[t.billing_status])}>{BILLING_LABEL[t.billing_status]}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="text-sm font-medium text-stone-950">{t.leads.toLocaleString('pt-BR')}</p>
-                    <p className="text-xs text-stone-500">{t.conversion}% conv.</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex justify-end gap-1">
-                      <a href={`/f/${t.slug}`} target="_blank" rel="noreferrer" title="Ver funil" className="p-2 text-stone-400 hover:text-blue-500 rounded-lg transition-colors"><Eye size={17} /></a>
-                      <a href={`mailto:${t.email}`} title="E-mail" className="p-2 text-stone-400 hover:text-blue-500 rounded-lg transition-colors"><Mail size={17} /></a>
-                      <button onClick={() => { setEditing(t); setShowModal(true); }} title="Editar" className="p-2 text-stone-400 hover:text-amber-500 rounded-lg transition-colors"><Edit size={17} /></button>
-                      <button onClick={() => handleDelete(t.id)} title="Remover" className="p-2 text-stone-400 hover:text-red-500 rounded-lg transition-colors"><Trash2 size={17} /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
