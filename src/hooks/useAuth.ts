@@ -16,6 +16,8 @@ interface AuthState {
     password: string,
     metadata?: any,
   ) => Promise<{ error: Error | null; needsConfirmation?: boolean }>;
+  verifyOtp: (email: string, token: string) => Promise<{ error: Error | null }>;
+  resendConfirmation: (email: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
   setUser: (user: User | null) => void;
@@ -80,6 +82,44 @@ export const useAuth = create<AuthState>()(
           error: error ? new Error(error.message) : null,
           needsConfirmation: false,
         };
+      },
+
+      // Confirma o email digitando o código de 6 dígitos (OTP) — imune ao problema de localhost
+      verifyOtp: async (email: string, token: string) => {
+        const { data, error } = await supabase.auth.verifyOtp({
+          email,
+          token,
+          type: "email",
+        });
+        if (!error && data?.user) {
+          const role =
+            data.user.app_metadata?.role ||
+            data.user.user_metadata?.role ||
+            "tenant_user";
+          set({
+            user: data.user,
+            session: data.session ?? null,
+            userRole: role,
+            loading: false,
+            initialized: true,
+          });
+          const { data: s } = await supabase.auth.getSession();
+          set({
+            session: s.session,
+            user: s.session?.user ?? null,
+            userRole:
+              s.session?.user?.app_metadata?.role ||
+              s.session?.user?.user_metadata?.role ||
+              role,
+          });
+        }
+        return { error: error ? new Error(error.message) : null };
+      },
+
+      // Reenvia o email de confirmação (código)
+      resendConfirmation: async (email: string) => {
+        const { error } = await supabase.auth.resend({ type: "signup", email });
+        return { error: error ? new Error(error.message) : null };
       },
 
       signOut: async () => {
