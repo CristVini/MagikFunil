@@ -176,7 +176,7 @@ export function HomePage() {
           {/* Pro */}
           <div className="p-7 rounded-3xl bg-white/5 border border-white/10 flex flex-col hover:border-white/25 hover:-translate-y-1 transition-all duration-300 animate-slide-up">
             <h3 className="font-bold text-stone-100">Pro</h3>
-            <p className="text-3xl font-bold mt-2 tracking-tight text-stone-50">R$ 369,00<span className="text-base font-normal text-stone-500">/mês</span></p>
+            <p className="text-3xl font-bold mt-2 tracking-tight text-stone-50">R$ 369,00<span className="text-base font-normal text-stone-400">/mês</span></p>
             <p className="text-sm text-stone-400 mt-1 mb-6">{PLANS[2].tagline}</p>
             <ul className="space-y-3 mb-8 flex-1">
               {PLANS[2].features.map((f, i) => (
@@ -231,10 +231,10 @@ export function HomePage() {
             <div className="w-7 h-7 rounded-md bg-gradient-to-br from-amber-400 to-orange-600 text-stone-950 grid place-items-center text-sm font-bold">✓</div>
             <span className="font-display font-bold text-stone-200">MagikFunil</span>
           </div>
-          <p className="text-sm text-stone-500">© 2026 MagikFunil</p>
+          <p className="text-sm text-stone-400">© 2026 MagikFunil</p>
           <div className="flex items-center gap-4 text-sm">
-            <Link to="/login" className="text-stone-500 hover:text-stone-200">Área do cliente</Link>
-            <Link to="/admin/login" className="text-stone-500 hover:text-stone-200">Admin</Link>
+            <Link to="/login" className="text-stone-400 hover:text-stone-200">Área do cliente</Link>
+            <Link to="/admin/login" className="text-stone-400 hover:text-stone-200">Admin</Link>
           </div>
         </div>
       </footer>

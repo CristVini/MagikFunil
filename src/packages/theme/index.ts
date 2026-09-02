@@ -36,7 +36,7 @@ export interface TenantTheme {
 
 export const DEFAULT_TENANT_THEME: TenantTheme = {
   colors: {
-    primary: '#16A34A',      // green-600
+    primary: '#15803D',      // green-700 (contraste ≥4.5 com texto branco nos CTAs)
     secondary: '#EC4899',    // pink-500
     accent: '#F59E0B',       // amber-500
     background: '#0C0A09',   // stone-950 (escuro rico — identidade base)
