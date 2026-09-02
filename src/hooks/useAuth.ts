@@ -1,22 +1,26 @@
-import React from 'react';
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { supabase } from '@lib/supabase';
-import type { User } from '@supabase/supabase-js';
+import React from "react";
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import { supabase } from "@lib/supabase";
+import type { User } from "@supabase/supabase-js";
 
 interface AuthState {
   user: User | null;
   session: any | null;
   loading: boolean;
   initialized: boolean;
-  userRole: 'admin' | 'tenant_user' | null;
+  userRole: "admin" | "tenant_user" | null;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, metadata?: any) => Promise<{ error: Error | null }>;
+  signUp: (
+    email: string,
+    password: string,
+    metadata?: any,
+  ) => Promise<{ error: Error | null; needsConfirmation?: boolean }>;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
   setUser: (user: User | null) => void;
   setSession: (session: any | null) => void;
-  setUserRole: (role: 'admin' | 'tenant_user' | null) => void;
+  setUserRole: (role: "admin" | "tenant_user" | null) => void;
 }
 
 export const useAuth = create<AuthState>()(
@@ -29,21 +33,53 @@ export const useAuth = create<AuthState>()(
       userRole: null,
 
       signIn: async (email: string, password: string) => {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
         if (!error && data?.user) {
-          const role = data.user.app_metadata?.role || data.user.user_metadata?.role || 'tenant_user';
-          set({ user: data.user, session: data, userRole: role, loading: false, initialized: true });
+          const role =
+            data.user.app_metadata?.role ||
+            data.user.user_metadata?.role ||
+            "tenant_user";
+          set({
+            user: data.user,
+            session: data,
+            userRole: role,
+            loading: false,
+            initialized: true,
+          });
         }
         return { error: error ? new Error(error.message) : null };
       },
 
       signUp: async (email: string, password: string, metadata?: any) => {
-        const { data, error } = await supabase.auth.signUp({ email, password, options: { data: metadata } });
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: metadata },
+        });
+        // Confirmação de email ativa: se não veio session, o user precisa confirmar antes de logar.
+        // Mesmo assim armazenamos o user para a UI saber que o cadastro foi feito.
         if (!error && data?.user) {
-          const role = data.user.app_metadata?.role || data.user.user_metadata?.role || 'tenant_user';
-          set({ user: data.user, session: data, userRole: role, loading: false, initialized: true });
+          const role =
+            data.user.app_metadata?.role ||
+            data.user.user_metadata?.role ||
+            "tenant_user";
+          const needsConfirmation = !data.session;
+          set({
+            user: data.user,
+            session: data.session ?? null,
+            userRole: role,
+            loading: false,
+            initialized: true,
+          });
+          return { error: null, needsConfirmation };
         }
-        return { error: error ? new Error(error.message) : null };
+        return {
+          error: error ? new Error(error.message) : null,
+          needsConfirmation: false,
+        };
       },
 
       signOut: async () => {
@@ -54,31 +90,55 @@ export const useAuth = create<AuthState>()(
       initialize: async () => {
         if (get().initialized) return;
 
-        const { data: { session } } = await supabase.auth.getSession();
-        const role = session?.user?.app_metadata?.role || session?.user?.user_metadata?.role || 'tenant_user';
-        set({ session, user: session?.user ?? null, loading: false, initialized: true, userRole: role });
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const role =
+          session?.user?.app_metadata?.role ||
+          session?.user?.user_metadata?.role ||
+          "tenant_user";
+        set({
+          session,
+          user: session?.user ?? null,
+          loading: false,
+          initialized: true,
+          userRole: role,
+        });
 
         supabase.auth.onAuthStateChange((_event: string, session: any) => {
-          const role = session?.user?.app_metadata?.role || session?.user?.user_metadata?.role || 'tenant_user';
-          set({ session, user: session?.user ?? null, loading: false, userRole: role });
+          const role =
+            session?.user?.app_metadata?.role ||
+            session?.user?.user_metadata?.role ||
+            "tenant_user";
+          set({
+            session,
+            user: session?.user ?? null,
+            loading: false,
+            userRole: role,
+          });
         });
       },
 
       setUser: (user: User | null) => set({ user }),
       setSession: (session: any | null) => set({ session }),
-      setUserRole: (role: 'admin' | 'tenant_user' | null) => set({ userRole: role }),
+      setUserRole: (role: "admin" | "tenant_user" | null) =>
+        set({ userRole: role }),
     }),
     {
-      name: 'magikfunil-auth',
-      partialize: (state) => ({ user: state.user, session: state.session, userRole: state.userRole }),
-    }
-  )
+      name: "magikfunil-auth",
+      partialize: (state) => ({
+        user: state.user,
+        session: state.session,
+        userRole: state.userRole,
+      }),
+    },
+  ),
 );
 
 // Hook para inicializar auth uma vez na app
 export function useAuthInit() {
   const initialize = useAuth((state) => state.initialize);
-  
+
   React.useEffect(() => {
     initialize();
   }, [initialize]);
