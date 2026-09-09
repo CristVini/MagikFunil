@@ -121,12 +121,10 @@ export function Result() {
 
   // Item do cliente com canal de venda próprio: abre o link do próprio item
   const handleItemClick = (prod: any) => {
-    useQuiz
-      .getState()
-      .trackEvent("product_click", {
-        profile_id: winner?.id,
-        product: prod.name,
-      });
+    useQuiz.getState().trackEvent("product_click", {
+      profile_id: winner?.id,
+      product: prod.name,
+    });
     if (prod.redirect_url) {
       window.open(prod.redirect_url, "_blank", "noopener,noreferrer");
     } else {
@@ -205,10 +203,10 @@ export function Result() {
         >
           <div className="p-8 md:p-14 flex flex-col space-y-12">
             {/* Grid Principal de 3 Colunas */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 items-stretch">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-10 items-start">
               {/* Coluna 1: Identidade do Perfil */}
               <div
-                className="flex flex-col justify-between space-y-10 lg:border-r lg:pr-10"
+                className="flex flex-col space-y-8 lg:border-r lg:pr-10"
                 style={{ borderColor: "var(--theme-dark-border)" }}
               >
                 <div className="space-y-6">
@@ -245,7 +243,7 @@ export function Result() {
                     </p>
                   </div>
 
-                  <div className="space-y-6 pt-4">
+                  <div className="space-y-5 pt-3">
                     <div className="space-y-2">
                       <div
                         className="flex items-center gap-2"
@@ -330,7 +328,7 @@ export function Result() {
 
               {/* Coluna 2: Arquitetura de Ativos (notas clicáveis) */}
               <div
-                className="space-y-8 lg:border-r lg:pr-10"
+                className="space-y-7 lg:border-r lg:pr-10"
                 style={{ borderColor: "var(--theme-dark-border)" }}
               >
                 <div
@@ -343,12 +341,12 @@ export function Result() {
                   </span>
                 </div>
 
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-3">
                   {activeNotes.map((note: any, i: number) => (
                     <button
                       key={i}
                       onClick={() => handleIngredientClick(note)}
-                      className="group relative flex items-center gap-6 p-6 border rounded-[24px] transition-all duration-500 hover:border-amber-500/30 hover:bg-amber-500/5"
+                      className="group relative flex items-center gap-5 p-5 border rounded-[20px] transition-all duration-500 hover:border-amber-500/30 hover:bg-amber-500/5"
                       style={{
                         backgroundColor: "rgba(0,0,0,0.4)",
                         borderColor: "var(--theme-dark-border)",
@@ -398,7 +396,7 @@ export function Result() {
               </div>
 
               {/* Coluna 3: Kits Recomendados (produtos + kit em destaque) */}
-              <div className="space-y-8">
+              <div className="space-y-7">
                 <div className="space-y-1">
                   <div
                     className="flex items-center gap-3"
@@ -418,7 +416,7 @@ export function Result() {
                   </p>
                 </div>
 
-                <div className="flex flex-col gap-6">
+                <div className="flex flex-col gap-5">
                   {recommendedProducts.map((prod, i) =>
                     prod.show_promo && prod.promo_price_cents != null ? (
                       // ===== Item em PROMOÇÃO — destaque grande =====
@@ -618,7 +616,7 @@ export function Result() {
 
                 {/* Ranking pequeno */}
                 <div
-                  className="pt-4 border-t"
+                  className="pt-3 border-t"
                   style={{ borderColor: "var(--theme-dark-border)" }}
                 >
                   <span
@@ -648,7 +646,7 @@ export function Result() {
 
             {/* Footer: CTA */}
             <div
-              className="pt-10 flex flex-col md:flex-row items-center justify-between gap-8 border-t"
+              className="pt-8 flex flex-col md:flex-row items-center justify-between gap-6 border-t"
               style={{ borderColor: "var(--theme-dark-border)" }}
             >
               <div className="space-y-1 text-center md:text-left">
