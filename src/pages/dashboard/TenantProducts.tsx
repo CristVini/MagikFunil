@@ -1,12 +1,44 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link2, ExternalLink, Package, ShieldAlert, CheckCircle2, Loader2, Lock } from "lucide-react";
+import {
+  Link2,
+  ExternalLink,
+  Package,
+  ShieldAlert,
+  CheckCircle2,
+  Loader2,
+  Lock,
+  Plus,
+  Trash2,
+  X,
+  MessageCircle,
+  Store,
+} from "lucide-react";
 import { supabase } from "@lib/supabase";
 import { useAuth } from "@hooks/useAuth";
 
-// Face 2.3 — Produtos: o cliente ativa itens do catálogo pré-criado e
-// cola o link de venda de cada um, agrupados pelo protocolo do funil
-// (2 produtos + 1 kit por perfil). Limite é o max_products do plano.
-// Dados 100% reais vindos de get_tenant_catalog; grava em tenant_products.
+// Face 2.3 — Produtos: o cliente cadastra LIVREMENTE os itens que fazem
+// sentido para o visitante comprar depois de aquecido pelo funil.
+// Cada item pertence a um perfil (benefício) do funil.
+// Limite POR PERFIL: Basic=1, Pro=2, Enterprise=6 (max_products_per_profile).
+
+interface TenantItem {
+  id: string;
+  profile_id: string;
+  name: string;
+  description: string;
+  key_actives: string[] | null;
+  support_text: string | null;
+  price_cents: number | null;
+  redirect_url: string;
+  enabled: boolean;
+  position: number;
+}
+
+interface Profile {
+  id: string;
+  name: string;
+  color: string;
+}
 
 function formatPrice(cents?: number | null): string {
   if (cents == null) return "";
@@ -14,153 +46,187 @@ function formatPrice(cents?: number | null): string {
   return reais.endsWith(",00") ? reais.slice(0, -3) : reais;
 }
 
-interface CatProduct {
-  id: string;
-  name: string;
-  category: string;
-  description: string;
-  is_kit: boolean;
-  enabled: boolean;
-  redirect_url: string;
-  support_text?: string;
-  price_cents?: number | null;
-  promo_price_cents?: number | null;
-  show_promo: boolean;
-  profile?: string;
-  profileLabel?: string;
-  position?: number;
-  kit_name?: string | null;
-}
-
-interface PlanInfo { name: string; max_products: number; allowsPromo: boolean; }
-
 export function TenantProducts() {
   const { user } = useAuth();
   const tenantId = user?.user_metadata?.tenant_id || user?.id;
-  const [products, setProducts] = useState<CatProduct[]>([]);
-  const [plan, setPlan] = useState<PlanInfo>({ name: "", max_products: 0, allowsPromo: false });
+  const [items, setItems] = useState<TenantItem[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [perProfileLimit, setPerProfileLimit] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [savingUrl, setSavingUrl] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    supabase.rpc("get_tenant_catalog").then(({ data, error: err }: { data: any; error: any }) => {
-      if (err) { setError(err.message); setLoading(false); return; }
-      setProducts(data?.products || []);
-      setPlan(data?.plan || { name: "", max_products: 0, allowsPromo: false });
-      setLoading(false);
-    });
-  }, []);
+  // Formulário de cadastro/edição
+  const [editing, setEditing] = useState<{
+    profileId: string;
+    itemId: string | null;
+  } | null>(null);
+  const [form, setForm] = useState({
+    name: "",
+    description: "",
+    key_actives: "",
+    price: "",
+    redirect_url: "",
+    channel: "whatsapp" as "whatsapp" | "store",
+  });
 
-  // Persiste via RPC upsert_tenant_product (aplica trava tenant_can_promo no servidor
-  // e limite do plano). Monta payload completo a partir do produto atual + patch.
-  const persistProduct = async (id: string, patch: Record<string, any>) => {
-    if (!tenantId) return;
-    const cur = products.find(p => p.id === id);
-    if (!cur) return;
-    const merged = { ...cur, ...patch };
-    const { error } = await supabase.rpc("upsert_tenant_product", {
-      p_tenant_id: tenantId,
-      p_product_id: id,
-      p_redirect_url: merged.redirect_url || "",
-      p_enabled: !!merged.enabled,
-      p_position: merged.position ?? 0,
-      p_kit_name: merged.kit_name ?? null,
-      p_support_text: merged.support_text ?? null,
-      p_price_cents: merged.price_cents ?? null,
-      p_promo_price_cents: merged.promo_price_cents ?? null,
-      p_show_promo: !!merged.show_promo,
-    });
-    if (error) console.error("Erro ao salvar produto:", error.message);
+  const reload = () => {
+    supabase
+      .rpc("get_tenant_items")
+      .then(({ data, error: err }: { data: any; error: any }) => {
+        if (err) {
+          setError(err.message);
+          setLoading(false);
+          return;
+        }
+        setItems(data?.items || []);
+        setProfiles(data?.profiles || []);
+        setPerProfileLimit(data?.per_profile_limit || 0);
+        setLoading(false);
+      });
   };
 
-  // Ativa/desativa (e insere tenant_product quando o tenant ainda não o tem)
-  const toggleEnabled = (id: string) => {
-    const target = products.find(p => p.id === id);
-    if (!target) return;
-    if (!target.enabled && activeCount >= plan.max_products && plan.max_products > 0) {
-      showToast(`Seu plano ${plan.name} permite até ${plan.max_products} produtos ativos. Faça upgrade para ativar mais.`);
-      return;
-    }
-    const nextEnabled = !target.enabled;
-    setProducts(prev => prev.map(p => p.id === id ? { ...p, enabled: nextEnabled } : p));
-    persistProduct(id, { enabled: nextEnabled });
-    showToast(target.enabled ? "Item desativado do funil" : (target.is_kit ? "Kit ativado no funil" : "Produto ativado no funil"));
-  };
-
-  const setUrl = (id: string, url: string) => {
-    setProducts(prev => prev.map(p => p.id === id ? { ...p, redirect_url: url } : p));
-  };
-
-  const saveUrl = (id: string) => {
-    const p = products.find(x => x.id === id);
-    if (!p) return;
-    setSavingUrl(id);
-    persistProduct(id, { redirect_url: p.redirect_url });
-    setTimeout(() => { setSavingUrl(null); showToast("Link de venda salvo"); }, 400);
-  };
-
-  const setShowPromo = (id: string) => {
-    const p = products.find(x => x.id === id);
-    if (!p) return;
-    setProducts(prev => prev.map(x => x.id === id ? { ...x, show_promo: !x.show_promo } : x));
-    persistProduct(id, { show_promo: !p.show_promo });
-    showToast("Preferência de promoção atualizada");
-  };
-
-  // Edição de kit (nome, apoio, preços) — persiste no banco
-  const setKitField = (id: string, field: "kit_name" | "support_text" | "price_cents" | "promo_price_cents", value: string) => {
-    const numFields = ["price_cents", "promo_price_cents"];
-    const parsed = numFields.includes(field)
-      ? Math.round(parseFloat(value.replace(",", ".")) * 100) || null
-      : value;
-    // O nome do kit: atualiza name (exibido) e kit_name (persistido)
-    if (field === "kit_name") {
-      setProducts(prev => prev.map(p => p.id === id ? { ...p, name: parsed as string, kit_name: parsed as string } : p));
-    } else {
-      setProducts(prev => prev.map(p => p.id === id ? { ...p, [field]: parsed as any } : p));
-    }
-    persistProduct(id, { [field]: parsed });
-  };
-
-  const maxProducts = plan.max_products || 0;
-  const activeCount = products.filter(p => p.enabled).length;
-  const atLimit = maxProducts > 0 && activeCount >= maxProducts;
-  const enabledPromo = plan.allowsPromo;
-
-  const groups = useMemo(() => {
-    const map = new Map<string, { label: string; items: CatProduct[] }>();
-    products.forEach(p => {
-      const key = p.profile || "outros";
-      const label = p.profileLabel || "Outros";
-      if (!map.has(key)) map.set(key, { label, items: [] });
-      map.get(key)!.items.push(p);
-    });
-    return Array.from(map.values());
-  }, [products]);
-
-  const filteredGroups = groups
-    .map(g => ({
-      label: g.label,
-      items: g.items.filter(p =>
-        !search || p.name.toLowerCase().includes(search.toLowerCase()) || g.label.toLowerCase().includes(search.toLowerCase())
-      ),
-    }))
-    .filter(g => g.items.length > 0);
+  useEffect(reload, []);
 
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2500);
   };
 
+  const openNew = (profileId: string) => {
+    setForm({
+      name: "",
+      description: "",
+      key_actives: "",
+      price: "",
+      redirect_url: "",
+      channel: "whatsapp",
+    });
+    setEditing({ profileId, itemId: null });
+  };
+
+  const openEdit = (item: TenantItem) => {
+    setForm({
+      name: item.name,
+      description: item.description || "",
+      key_actives: (item.key_actives || []).join(", "),
+      price: item.price_cents != null ? formatPrice(item.price_cents) : "",
+      redirect_url: item.redirect_url || "",
+      channel: /wa\.me|whatsapp|api.whatsapp/i.test(item.redirect_url || "")
+        ? "whatsapp"
+        : "store",
+    });
+    setEditing({ profileId: item.profile_id, itemId: item.id });
+  };
+
+  const closeForm = () => setEditing(null);
+
+  const saveItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editing) return;
+    if (!form.name.trim()) {
+      showToast("Dê um nome ao item");
+      return;
+    }
+
+    setSavingId(editing.itemId || "new");
+    const keyActives = form.key_actives
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    // Monta o link do canal de venda
+    let redirectUrl = form.redirect_url.trim();
+    if (!redirectUrl && form.channel === "whatsapp") {
+      // sem número preenchido, mantém vazio (venda fecha onde o cliente quiser)
+      redirectUrl = "";
+    }
+
+    const priceCents = form.price
+      ? Math.round(
+          parseFloat(form.price.replace(/\./g, "").replace(",", ".")) * 100,
+        )
+      : null;
+
+    const { error: err } = await supabase.rpc("upsert_tenant_item", {
+      p_tenant_id: tenantId,
+      p_profile_id: editing.profileId,
+      p_name: form.name.trim(),
+      p_description: form.description || null,
+      p_key_actives: keyActives.length ? keyActives : null,
+      p_support_text: null,
+      p_price_cents: priceCents,
+      p_redirect_url: redirectUrl,
+      p_enabled: true,
+      p_position: 0,
+      p_item_id: editing.itemId,
+    });
+
+    setSavingId(null);
+    if (err) {
+      showToast(err.message);
+    } else {
+      closeForm();
+      reload();
+      showToast(
+        editing.itemId ? "Item atualizado" : "Item adicionado ao funil",
+      );
+    }
+  };
+
+  const toggleEnabled = async (item: TenantItem) => {
+    const { error: err } = await supabase.rpc("upsert_tenant_item", {
+      p_tenant_id: tenantId,
+      p_profile_id: item.profile_id,
+      p_name: item.name,
+      p_description: item.description,
+      p_key_actives: item.key_actives,
+      p_support_text: item.support_text,
+      p_price_cents: item.price_cents,
+      p_redirect_url: item.redirect_url,
+      p_enabled: !item.enabled,
+      p_position: item.position,
+      p_item_id: item.id,
+    });
+    if (err) showToast(err.message);
+    else {
+      reload();
+      showToast(item.enabled ? "Item desativado" : "Item ativado");
+    }
+  };
+
+  const deleteItem = async (item: TenantItem) => {
+    if (!window.confirm(`Remover "${item.name}"?`)) return;
+    const { error: err } = await supabase
+      .from("tenant_items")
+      .delete()
+      .eq("id", item.id);
+    if (err) showToast(err.message);
+    else {
+      reload();
+      showToast("Item removido");
+    }
+  };
+
+  const itemsByProfile = useMemo(() => {
+    const map = new Map<string, TenantItem[]>();
+    items.forEach((i) => {
+      if (!map.has(i.profile_id)) map.set(i.profile_id, []);
+      map.get(i.profile_id)!.push(i);
+    });
+    return map;
+  }, [items]);
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-32" style={{ fontFamily: "var(--font-sans)" }}>
+      <div
+        className="flex items-center justify-center py-32"
+        style={{ fontFamily: "var(--font-sans)" }}
+      >
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
-          <p className="text-stone-500">Carregando catálogo...</p>
+          <p className="text-stone-500">Carregando seus itens...</p>
         </div>
       </div>
     );
@@ -168,260 +234,376 @@ export function TenantProducts() {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center" style={{ fontFamily: "var(--font-sans)" }}>
-        <p className="font-medium text-red-700">Não foi possível carregar os produtos.</p>
+      <div
+        className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center"
+        style={{ fontFamily: "var(--font-sans)" }}
+      >
+        <p className="font-medium text-red-700">
+          Não foi possível carregar seus itens.
+        </p>
         <p className="text-sm text-red-600 mt-1">{error}</p>
       </div>
     );
   }
 
+  const ChannelIcon = ({ url }: { url: string }) =>
+    /wa\.me|whatsapp|api.whatsapp/i.test(url) ? (
+      <MessageCircle size={16} />
+    ) : (
+      <Store size={16} />
+    );
+
   return (
     <div className="space-y-6" style={{ fontFamily: "var(--font-sans)" }}>
       {/* Toast */}
       {toast && (
-        <div className="fixed top-5 right-5 z-50 bg-stone-950 text-stone-50 px-5 py-3 rounded-xl shadow-2xl animate-in fade-in slide-in-from-top-4 duration-200 flex items-center gap-2 text-sm">
-          <CheckCircle2 size={18} className="text-amber-400" />
-          {toast}
+        <div className="fixed top-5 right-5 z-50 bg-stone-950 text-stone-50 px-5 py-3 rounded-xl shadow-2xl animate-in fade-in slide-in-from-top-4 duration-200 flex items-center gap-2 text-sm max-w-sm">
+          <CheckCircle2 size={18} className="text-amber-400 shrink-0" />
+          <span>{toast}</span>
         </div>
       )}
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-display font-bold text-stone-950" style={{ fontFamily: "var(--font-display)" }}>
+          <h1
+            className="text-3xl font-display font-bold text-stone-950"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
             Meus Produtos
           </h1>
-          <p className="text-stone-500 mt-1">O protocolo que o quiz recomenda — ative cada item e cole o link de venda</p>
+          <p className="text-stone-500 mt-1">
+            Cadastre os itens que fazem sentido para o seu cliente, para cada
+            resultado do funil.
+          </p>
         </div>
-
-        {/* Indicador de limite do plano */}
         <div className="px-4 py-3 bg-white rounded-2xl border border-stone-200 flex items-center gap-3">
           <Package size={20} className="text-amber-500" />
           <div>
             <p className="text-sm font-semibold text-stone-950">
-              {activeCount}/{maxProducts} itens ativos
+              Até {perProfileLimit} item(ns) por perfil
             </p>
-            <div className="w-32 h-1.5 bg-stone-100 rounded-full mt-1 overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all"
-                style={{ width: `${maxProducts ? (activeCount / maxProducts) * 100 : 0}%`, backgroundColor: atLimit ? "#EF4444" : "#F59E0B" }}
-              />
+            <p className="text-xs text-stone-500">
+              {profiles.length} perfis no seu funil
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Seções por perfil */}
+      {profiles.map((profile) => {
+        const profileItems = itemsByProfile.get(profile.id) || [];
+        const activeCount = profileItems.filter((i) => i.enabled).length;
+        const atLimit = perProfileLimit > 0 && activeCount >= perProfileLimit;
+
+        return (
+          <div
+            key={profile.id}
+            className="bg-white rounded-2xl border border-stone-200 overflow-hidden"
+          >
+            <div className="px-5 py-3 border-b border-stone-200 flex items-center justify-between gap-3 bg-stone-50/50">
+              <div className="flex items-center gap-2">
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: profile.color || "#F59E0B" }}
+                />
+                <h2
+                  className="font-display text-lg font-bold text-stone-950"
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
+                  {profile.name}
+                </h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`text-xs font-semibold ${atLimit ? "text-red-600" : "text-stone-500"}`}
+                >
+                  {activeCount}/{perProfileLimit} itens
+                </span>
+                <button
+                  onClick={() => openNew(profile.id)}
+                  disabled={atLimit}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 text-stone-950 rounded-lg text-sm font-semibold hover:bg-amber-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Plus size={15} />
+                  Adicionar item
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Aviso de limite */}
-      {atLimit && (
-        <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl">
-          <ShieldAlert size={20} className="text-red-600 mt-0.5" />
-          <div className="flex-1">
-            <p className="font-medium text-red-900">Você atingiu o limite de itens ativos do plano {plan.name}</p>
-            <p className="text-sm text-red-700">Desative um item ou faça upgrade para ativar mais do protocolo.</p>
-          </div>
-          <button className="shrink-0 px-3 py-1.5 bg-stone-950 text-stone-50 rounded-lg text-sm font-medium hover:bg-stone-800 transition-colors">
-            Fazer upgrade
-          </button>
-        </div>
-      )}
+            {/* Formulário de cadastro/edição */}
+            {editing?.profileId === profile.id && (
+              <form
+                onSubmit={saveItem}
+                className="p-5 bg-amber-500/[0.03] border-b border-stone-100 space-y-4"
+              >
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold text-stone-950">
+                    {editing.itemId ? "Editar item" : "Novo item"} —{" "}
+                    {profile.name}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={closeForm}
+                    className="p-1.5 text-stone-400 hover:text-stone-600 transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
 
-      {/* Busca */}
-      <div className="relative max-w-md">
-        <Link2 size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
-        <input
-          type="text"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar produto, kit ou perfil..."
-          className="w-full pl-10 pr-4 py-2.5 bg-white border border-stone-200 rounded-xl text-sm text-stone-950 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-        />
-      </div>
+                <div>
+                  <label className="block text-xs font-semibold text-stone-600 mb-1">
+                    Nome do item *
+                  </label>
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, name: e.target.value }))
+                    }
+                    placeholder="Ex: Magnésio Dimalato + Triptofano"
+                    className="w-full px-3 py-2.5 bg-white border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
 
-      {/* Protocolos por perfil */}
-      {filteredGroups.map((group) => (
-        <div key={group.label} className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
-          <div className="px-5 py-3 border-b border-stone-200 flex items-center gap-2 bg-stone-50/50">
-            <span className="w-2 h-2 rounded-full bg-amber-500" />
-            <h2 className="font-display text-lg font-bold text-stone-950" style={{ fontFamily: "var(--font-display)" }}>
-              {group.label}
-            </h2>
-            <span className="text-xs text-stone-400">Protocolo recomendado pelo funil</span>
-          </div>
+                <div>
+                  <label className="block text-xs font-semibold text-stone-600 mb-1">
+                    Descrição
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={form.description}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, description: e.target.value }))
+                    }
+                    placeholder="O que este item faz pelo cliente?"
+                    className="w-full px-3 py-2.5 bg-white border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
+                  />
+                </div>
 
-          <div className="divide-y divide-stone-100">
-            {group.items.map((p) => (
-              <div key={p.id} className={`p-5 flex flex-col lg:flex-row lg:items-center gap-4 transition-colors ${p.enabled ? "bg-amber-50/30" : ""}`}>
-                {/* Info */}
-                <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${p.is_kit ? "bg-violet-500/10 text-violet-600" : p.enabled ? "bg-amber-500/10 text-amber-600" : "bg-stone-100 text-stone-400"}`}>
-                    <Package size={22} />
+                <div>
+                  <label className="block text-xs font-semibold text-stone-600 mb-1">
+                    Composição (ativos, separados por vírgula)
+                  </label>
+                  <input
+                    type="text"
+                    value={form.key_actives}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, key_actives: e.target.value }))
+                    }
+                    placeholder="Ex: Magnésio, Vitamina B6, Triptofano"
+                    className="w-full px-3 py-2.5 bg-white border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-600 mb-1">
+                    Preço (opcional — em R$)
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={form.price}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, price: e.target.value }))
+                    }
+                    placeholder="Ex: 119,90 (deixe vazio se não quiser definir)"
+                    className="w-full px-3 py-2.5 bg-white border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-600 mb-1">
+                    Canal de venda *
+                  </label>
+                  <div className="flex gap-2 mb-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForm((f) => ({ ...f, channel: "whatsapp" }))
+                      }
+                      className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium border transition-colors flex items-center justify-center gap-2 ${form.channel === "whatsapp" ? "border-amber-500 bg-amber-500/10 text-amber-700" : "border-stone-200 text-stone-600 hover:border-stone-300"}`}
+                    >
+                      <MessageCircle size={16} /> WhatsApp
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForm((f) => ({ ...f, channel: "store" }))
+                      }
+                      className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium border transition-colors flex items-center justify-center gap-2 ${form.channel === "store" ? "border-amber-500 bg-amber-500/10 text-amber-700" : "border-stone-200 text-stone-600 hover:border-stone-300"}`}
+                    >
+                      <Store size={16} /> Loja
+                    </button>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    {p.is_kit ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 bg-violet-100 text-violet-700 rounded-full text-[10px] font-bold uppercase tracking-wide shrink-0">Kit</span>
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-0.5">Nome do kit</label>
-                          <input
-                            type="text"
-                            value={p.name}
-                            onChange={e => setKitField(p.id, "kit_name", e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl text-sm font-semibold text-stone-950 bg-white border border-stone-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-0.5">Texto de apoio</label>
-                          <textarea
-                            rows={2}
-                            value={p.support_text || ""}
-                            onChange={e => setKitField(p.id, "support_text", e.target.value)}
-                            placeholder={p.support_text}
-                            className="w-full px-3 py-2 rounded-xl text-xs text-stone-600 bg-white border border-stone-200 focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
-                          />
-                        </div>
-                        <div className={`grid grid-cols-2 gap-2 rounded-xl p-2.5 ${plan.allowsPromo ? "bg-white border border-stone-200" : "bg-stone-50 border border-dashed border-stone-300"}`}>
-                          <div>
-                            <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-0.5">Preço normal</label>
-                            <div className="flex items-center">
-                              <span className="text-xs text-stone-400 mr-1">R$</span>
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                value={formatPrice(p.price_cents)}
-                                onChange={e => setKitField(p.id, "price_cents", e.target.value)}
-                                disabled={!plan.allowsPromo}
-                                placeholder="119,90"
-                                className={`w-full px-2 py-1.5 rounded-lg text-sm font-semibold text-stone-950 focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-60 ${plan.allowsPromo ? "bg-white border border-stone-200" : "bg-stone-100 cursor-not-allowed"}`}
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-0.5 flex items-center gap-1">
-                              Preço promo {plan.allowsPromo && <span className="text-violet-600">●</span>}
-                            </label>
-                            <div className="flex items-center">
-                              <span className="text-xs text-stone-400 mr-1">R$</span>
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                value={formatPrice(p.promo_price_cents)}
-                                onChange={e => setKitField(p.id, "promo_price_cents", e.target.value)}
-                                disabled={!plan.allowsPromo}
-                                placeholder="89,90"
-                                className={`w-full px-2 py-1.5 rounded-lg text-sm font-bold text-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-60 ${plan.allowsPromo ? "bg-white border border-stone-200" : "bg-stone-100 cursor-not-allowed"}`}
-                              />
-                            </div>
-                          </div>
-                          {!plan.allowsPromo && (
-                            <p className="col-span-2 text-[10px] text-stone-400 mt-0.5 flex items-center gap-1">
-                              <Lock size={10} /> Preços exclusivos do plano Enterprise
-                            </p>
-                          )}
-                        </div>
-                        {plan.allowsPromo && (
-                          <p className="text-xs text-stone-400 mt-0.5">De <span className="text-amber-600 font-medium">{p.profileLabel}</span></p>
+                  <input
+                    type="text"
+                    value={form.redirect_url}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, redirect_url: e.target.value }))
+                    }
+                    placeholder={
+                      form.channel === "whatsapp"
+                        ? "Link do WhatsApp (ex: https://wa.me/5511999999999)"
+                        : "Link da loja (ex: https://sualoja.com.br/produto)"
+                    }
+                    className="w-full px-3 py-2.5 bg-white border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="submit"
+                    disabled={savingId !== null}
+                    className="flex-1 px-4 py-2.5 bg-stone-950 text-stone-50 rounded-xl font-semibold hover:bg-stone-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {savingId !== null ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <CheckCircle2 size={16} />
+                    )}
+                    {editing.itemId
+                      ? "Salvar alterações"
+                      : "Adicionar ao funil"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeForm}
+                    className="px-4 py-2.5 text-stone-500 hover:text-stone-700 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Lista de itens do perfil */}
+            {profileItems.length === 0 && !editing ? (
+              <div className="p-8 text-center text-stone-400 text-sm">
+                Nenhum item cadastrado para este perfil ainda.
+              </div>
+            ) : (
+              <div className="divide-y divide-stone-100">
+                {profileItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className={`p-5 flex flex-col lg:flex-row lg:items-center gap-4 transition-colors ${item.enabled ? "" : "opacity-60"}`}
+                  >
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                      <div
+                        className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${item.enabled ? "bg-amber-500/10 text-amber-600" : "bg-stone-100 text-stone-400"}`}
+                      >
+                        <Package size={22} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold text-stone-950 truncate">
+                          {item.name}
+                        </h3>
+                        {item.description && (
+                          <p className="text-xs text-stone-500 mt-0.5 line-clamp-2">
+                            {item.description}
+                          </p>
+                        )}
+                        {item.key_actives && item.key_actives.length > 0 && (
+                          <p className="text-xs text-stone-400 mt-0.5">
+                            Contém: {item.key_actives.join(", ")}
+                          </p>
+                        )}
+                        {item.price_cents != null && (
+                          <span className="inline-block mt-1.5 px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-semibold">
+                            R$ {formatPrice(item.price_cents)}
+                          </span>
                         )}
                       </div>
-                    ) : (
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-stone-950 truncate">{p.name}</h3>
-                          <span className="px-2 py-0.5 bg-stone-100 text-stone-500 rounded-full text-[10px] capitalize shrink-0">{p.category?.replace("_", " ")}</span>
-                        </div>
-                        <p className="text-xs text-stone-500 mt-1">{p.description}</p>
-                        <p className="text-xs text-stone-400 mt-0.5">
-                          De <span className="text-amber-600 font-medium">{p.profileLabel}</span>
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Link de venda */}
-                <div className="flex items-center gap-2 flex-1 lg:flex-none lg:w-80">
-                  <Link2 size={16} className="text-stone-400 shrink-0" />
-                  <input
-                    type="url"
-                    value={p.redirect_url}
-                    onChange={e => setUrl(p.id, e.target.value)}
-                    onBlur={() => saveUrl(p.id)}
-                    placeholder={p.is_kit ? "https://seusite.com/kit" : "https://seusite.com/produto"}
-                    disabled={!p.enabled}
-                    className={`flex-1 px-3 py-2 rounded-xl text-sm border focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all ${
-                      p.enabled
-                        ? "bg-stone-50 border-stone-200 text-stone-950 placeholder-stone-400"
-                        : "bg-stone-50 opacity-50 border-stone-200 text-stone-400 placeholder-stone-400 cursor-not-allowed"
-                    }`}
-                  />
-                  {savingUrl === p.id ? (
-                    <Loader2 size={16} className="text-amber-500 animate-spin" />
-                  ) : p.redirect_url ? (
-                    <a href={p.redirect_url} target="_blank" rel="noopener noreferrer" className="p-2 text-stone-400 hover:text-amber-500 transition-colors">
-                      <ExternalLink size={16} />
-                    </a>
-                  ) : null}
-                </div>
-
-                {/* Toggle ativo */}
-                <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                  <input type="checkbox" checked={p.enabled} onChange={() => toggleEnabled(p.id)} className="sr-only peer" />
-                  <div className={`w-11 h-6 rounded-full peer peer-focus:ring-2 peer-focus:ring-amber-500 peer-focus:ring-offset-2 transition-colors ${p.enabled ? "bg-amber-500" : "bg-stone-300"}`}>
-                    <span className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform ${p.enabled ? "translate-x-5" : ""}`} />
-                  </div>
-                  <span className="ml-3 text-sm text-stone-600 w-20">{p.enabled ? "Ativo" : "Inativo"}</span>
-                </label>
-
-                {/* Recurso premium: Exibir promoção (exclusivo Enterprise) */}
-                {enabledPromo ? (
-                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={p.show_promo}
-                      disabled={!p.enabled}
-                      onChange={() => setShowPromo(p.id)}
-                      className="sr-only peer"
-                    />
-                    <div className={`w-11 h-6 rounded-full peer peer-focus:ring-2 peer-focus:ring-violet-500 transition-colors ${p.show_promo && p.enabled ? "bg-violet-500" : "bg-stone-300"}`}>
-                      <span className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform ${p.show_promo && p.enabled ? "translate-x-5" : ""}`} />
                     </div>
-                    <span className="ml-3 text-sm font-semibold w-24">
-                      {p.enabled ? (p.show_promo ? <span className="text-violet-600">ON</span> : <span className="text-stone-400">OFF</span>) : <span className="text-stone-400">—</span>}
-                    </span>
-                  </label>
-                ) : (
-                  <button
-                    onClick={() => showToast("Exibir promoção é um recurso do plano Enterprise.")}
-                    className="shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-stone-300 text-stone-400 hover:border-violet-400 hover:text-violet-600 transition-colors group"
-                    title="Recurso exclusivo do plano Enterprise"
-                  >
-                    <Lock size={14} className="group-hover:text-violet-500" />
-                    <span className="text-sm font-medium hidden sm:inline">Promo</span>
-                    <span className="text-xs text-violet-600 font-semibold hidden sm:inline">Enterprise</span>
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
 
-      {filteredGroups.length === 0 && (
-        <div className="bg-white rounded-2xl border border-stone-200 p-12 text-center text-stone-500">
-          Nenhum produto ou kit encontrado para "{search}"
-        </div>
-      )}
+                    {/* Link de venda / canal */}
+                    <div className="flex items-center gap-2 flex-1 lg:flex-none lg:w-64">
+                      {item.redirect_url ? (
+                        <>
+                          <span className="text-stone-400 shrink-0">
+                            <ChannelIcon url={item.redirect_url} />
+                          </span>
+                          <a
+                            href={item.redirect_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 text-sm text-amber-600 hover:text-amber-700 truncate font-medium"
+                          >
+                            {/wa\.me/i.test(item.redirect_url)
+                              ? "WhatsApp"
+                              : "Loja"}
+                          </a>
+                          <a
+                            href={item.redirect_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 text-stone-400 hover:text-amber-500 transition-colors"
+                            title="Abrir"
+                          >
+                            <ExternalLink size={15} />
+                          </a>
+                        </>
+                      ) : (
+                        <span className="text-xs text-stone-400 italic">
+                          Sem link de venda
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Ações */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => openEdit(item)}
+                        className="px-3 py-1.5 text-sm font-medium text-stone-600 hover:text-stone-900 border border-stone-200 rounded-lg hover:border-stone-300 transition-colors"
+                      >
+                        Editar
+                      </button>
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={item.enabled}
+                          onChange={() => toggleEnabled(item)}
+                          className="sr-only peer"
+                        />
+                        <div
+                          className={`w-10 h-6 rounded-full peer-focus:ring-2 peer-focus:ring-amber-500 transition-colors ${item.enabled ? "bg-amber-500" : "bg-stone-300"}`}
+                        >
+                          <span
+                            className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform ${item.enabled ? "translate-x-4" : ""}`}
+                          />
+                        </div>
+                        <span className="ml-2 text-sm text-stone-600 w-14">
+                          {item.enabled ? "Ativo" : "Inativo"}
+                        </span>
+                      </label>
+                      <button
+                        onClick={() => deleteItem(item)}
+                        className="p-2 text-stone-400 hover:text-red-500 transition-colors"
+                        title="Remover item"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
 
       {/* Legenda */}
       <div className="text-xs text-stone-500 bg-white rounded-xl border border-stone-200 p-4 space-y-1.5">
         <div className="flex items-center gap-2">
-          <CheckCircle2 size={14} className="text-amber-500 shrink-0" />
-          Os itens ativados com link aparecem no resultado do quiz, na ordem do protocolo (2 produtos + 1 kit) de cada perfil.
+          <ShieldAlert size={14} className="text-stone-400 shrink-0" />
+          Cada perfil do funil tem um limite de itens. Itens ativados aparecem
+          no resultado do quiz para o visitante.
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-4 h-4 rounded-full bg-violet-500/10 inline-flex items-center justify-center shrink-0"><Package size={10} className="text-violet-600" /></span>
-          <span>O <strong>kit</strong> combina os dois produtos do perfil — é destacado para aumentar o ticket médio. Sem preço configurado: a venda fecha no seu link/WhatsApp.</span>
+          <Lock size={14} className="text-stone-400 shrink-0" />O limite é por
+          perfil: Basic (1), Pro (2), Enterprise (6). Use o botão "Adicionar
+          item" em cada perfil para cadastrar.
         </div>
       </div>
     </div>
