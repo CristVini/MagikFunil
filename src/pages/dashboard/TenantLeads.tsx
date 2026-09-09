@@ -296,7 +296,7 @@ export function TenantLeads() {
                             <Eye size={16} />
                           </button>
                           <a
-                            href={`https://wa.me/55${l.phone.replace(/\D/g, "").slice(-11)}`}
+                            href={`https://wa.me/55${(l.phone || "").replace(/\D/g, "").slice(-11)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="p-2 text-stone-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
