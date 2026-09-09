@@ -4,7 +4,7 @@ import { Outlet, Navigate, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { supabase } from '@lib/supabase';
 import { applyTheme, createThemeFromTenant, DEFAULT_TENANT_THEME } from '@packages/theme';
-import { getSubdomain, cn } from '@lib/utils';
+import { getSubdomain, cn, funnelPath } from '@lib/utils';
 
 export function PublicLayout() {
   const [theme, setTheme] = useState(DEFAULT_TENANT_THEME);
@@ -60,14 +60,14 @@ export function PublicLayout() {
           const isUnavailablePage = currentPath.includes('/indisponivel');
 
           if (!isAvailable && !isUnavailablePage) {
-            setRedirectTo(`/f/${slug}/indisponivel`);
+            setRedirectTo(funnelPath(slug, 'indisponivel'));
           } else if (isAvailable && isUnavailablePage) {
-            setRedirectTo(`/f/${slug}`);
+            setRedirectTo(funnelPath(slug));
           }
         } else {
           applyTheme(DEFAULT_TENANT_THEME);
           setTheme(DEFAULT_TENANT_THEME);
-          setRedirectTo(`/f/${slug}/indisponivel`);
+          setRedirectTo(funnelPath(slug, 'indisponivel'));
         }
       } catch {
         applyTheme(DEFAULT_TENANT_THEME);

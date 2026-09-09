@@ -3,6 +3,7 @@
 import { useParams, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@lib/supabase";
+import { funnelPath } from "@lib/utils";
 import { useQuiz } from "@hooks/useQuiz";
 import { ArrowRight, ShoppingBag, CheckCircle, Sparkles, Loader2, ExternalLink, User, Phone, ShieldCheck } from "lucide-react";
 
@@ -150,7 +151,7 @@ export function ProductCapture() {
             <h1 className="text-2xl font-display font-bold text-stone-950 mb-3">Produto não encontrado</h1>
             <p className="text-stone-500 mb-6">Não foi possível identificar o produto selecionado.</p>
             <Link
-              to={`/f/${slug}`}
+              to={funnelPath(slug)}
               className="inline-flex items-center gap-2 px-6 py-3 bg-stone-950 text-stone-50 rounded-full font-semibold hover:bg-stone-800 transition-colors"
             >
               Voltar ao Início
@@ -279,7 +280,7 @@ export function ProductCapture() {
 
             <div className="mt-6 pt-6 border-t border-stone-200">
               <Link
-                to={`/f/${slug}/resultado`}
+                to={funnelPath(slug, 'resultado')}
                 className="text-stone-500 hover:text-amber-600 text-sm font-medium"
               >
                 ← Voltar ao resultado completo

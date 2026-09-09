@@ -9,6 +9,7 @@ import {
   AreaChart, Area, CartesianGrid, PieChart, Pie,
 } from "recharts";
 import { supabase } from "@lib/supabase";
+import { funnelPath } from "@lib/utils";
 
 interface Overview {
   tenant: { id: string; name: string; slug: string; whatsapp?: string; status: string };
@@ -81,7 +82,7 @@ export function TenantDashboard() {
           <p className="text-stone-500 mt-1">Aqui está o que está acontecendo no seu funil hoje</p>
         </div>
         <Link
-          to={`/f/${tenant.slug}`}
+          to={funnelPath(tenant.slug)}
           className="inline-flex items-center gap-2 px-4 py-2 bg-stone-950 text-stone-50 rounded-xl font-medium hover:bg-stone-800 transition-colors"
         >
           <ExternalLink size={18} />

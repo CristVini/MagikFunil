@@ -48,6 +48,16 @@ export function getTenantUrl(subdomain: string, rootDomain: string): string {
   return `https://${subdomain}.${rootDomain}`;
 }
 
+/**
+ * Path canônico do funil público: `/<slug>/funil[/sub]`.
+ * Substitui o antigo prefixo `/f/:slug` — o slug do cliente agora vive na raiz,
+ * convivendo com `/dashboard`, `/admin`, `/login` graças ao segmento fixo "funil".
+ */
+export function funnelPath(slug: string | undefined, sub?: string): string {
+  const base = slug || 'tenant';
+  return sub ? `/${base}/funil/${sub}` : `/${base}/funil`;
+}
+
 export function debounce<T extends (...args: unknown[]) => unknown>(
   fn: T,
   delay: number

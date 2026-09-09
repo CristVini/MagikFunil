@@ -3,6 +3,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@lib/supabase";
+import { funnelPath } from "@lib/utils";
 import { useQuiz } from "@hooks/useQuiz";
 import { ArrowRight, ChevronLeft, Loader2 } from "lucide-react";
 
@@ -45,7 +46,7 @@ export function Quiz() {
     if (currentStep === questions.length - 1) {
       finish();
       // Navega para o resultado após responder a última pergunta
-      setTimeout(() => navigate(`/f/${slug}/resultado`), 400);
+      setTimeout(() => navigate(funnelPath(slug, 'resultado')), 400);
     } else {
       next();
     }

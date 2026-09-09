@@ -75,7 +75,7 @@ export function HomePage() {
           <Link to="/login" className="px-8 py-4 bg-gradient-to-r from-amber-400 to-orange-500 text-stone-950 rounded-2xl font-bold hover:shadow-xl hover:shadow-amber-500/40 hover:-translate-y-1 transition-all flex items-center justify-center gap-2 group">
             Criar meu funil <ArrowRight size={19} className="group-hover:translate-x-1 transition-transform" />
           </Link>
-          <Link to="/f/encapsulados-nutraceuticos" className="px-8 py-4 bg-white/5 border border-white/10 backdrop-blur text-stone-100 rounded-2xl font-semibold hover:bg-white/10 hover:border-white/20 transition-all hover:-translate-y-1">
+          <Link to="/encapsulados-nutraceuticos/funil" className="px-8 py-4 bg-white/5 border border-white/10 backdrop-blur text-stone-100 rounded-2xl font-semibold hover:bg-white/10 hover:border-white/20 transition-all hover:-translate-y-1">
             Ver exemplo real
           </Link>
         </div>

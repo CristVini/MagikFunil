@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Globe, Copy, ExternalLink, AlertCircle, CheckCircle, WifiOff, Loader2 as LoaderIcon, Check } from "lucide-react";
 import { supabase } from "@lib/supabase";
+import { funnelPath } from "@lib/utils";
 import { useAuth } from "@hooks/useAuth";
 
 // Face 2.6 — Publicação: subir/descer o funil, copiar link, validar produtos.
@@ -28,9 +29,10 @@ export function TenantPublication() {
     });
   }, []);
 
-  const rootDomain = import.meta.env.VITE_ROOT_DOMAIN || "seudominio.com";
   const slug = tenant?.slug || "";
-  const finalUrl = `https://${slug}.${rootDomain}`;
+  // Link por enquanto: /<slug>/funil (path-based) — sem subdomínio até termos DNS wildcard
+  const origin = (typeof window !== "undefined" && window.location.origin) || "";
+  const finalUrl = slug ? `${origin}${funnelPath(slug)}` : "";
   const isPublished = status === "published";
 
   // Validação: produtos ativos precisam de link de venda

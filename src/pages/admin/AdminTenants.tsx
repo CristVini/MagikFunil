@@ -12,7 +12,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { supabase } from "@lib/supabase";
-import { formatCurrency } from "@lib/utils";
+import { formatCurrency, funnelPath } from "@lib/utils";
 import { cn } from "@lib/utils";
 
 type DeliveryStatus = "active" | "paused" | "blocked";
@@ -538,7 +538,7 @@ export function AdminTenants() {
                       <td className="px-6 py-4">
                         <div className="flex justify-end gap-1">
                           <a
-                            href={`/f/${t.slug}`}
+                            href={funnelPath(t.slug)}
                             target="_blank"
                             rel="noreferrer"
                             title="Ver funil"

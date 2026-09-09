@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
 import { PublicLayout } from './layouts/PublicLayout';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { AdminLayout } from './layouts/AdminLayout';
@@ -51,17 +51,36 @@ function PageLoader() {
   );
 }
 
+// Redireciona links antigos /f/:slug/...  ->  /<slug>/funil/...
+function LegacyFunnelRedirect() {
+  const { slug } = useParams<{ slug: string }>();
+  const location = useLocation();
+  const rest = location.pathname.replace(`/f/${slug}`, '');
+  const target = slug ? `/${slug}/funil${rest}` : '/';
+  return <Navigate to={target} replace />;
+}
+
 function App() {
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
         {/* ===== PÚBLICO (funil do visitante) ===== */}
+        {/* Canonical: /<slug>/funil/...  (o slug do cliente vive na raiz) */}
         <Route element={<PublicLayout />}>
-          <Route path="/f/:slug" element={<Landing />} />
-          <Route path="/f/:slug/quiz" element={<Quiz />} />
-          <Route path="/f/:slug/resultado" element={<Result />} />
-          <Route path="/f/:slug/produto" element={<ProductCapture />} />
-          <Route path="/f/:slug/indisponivel" element={<FunnelUnavailable />} />
+          <Route path="/:slug/funil" element={<Landing />} />
+          <Route path="/:slug/funil/quiz" element={<Quiz />} />
+          <Route path="/:slug/funil/resultado" element={<Result />} />
+          <Route path="/:slug/funil/produto" element={<ProductCapture />} />
+          <Route path="/:slug/funil/indisponivel" element={<FunnelUnavailable />} />
+        </Route>
+
+        {/* Legado: /f/:slug/...  ->  redireciona para a nova forma (links antigos continuam ok) */}
+        <Route element={<LegacyFunnelRedirect />}>
+          <Route path="/f/:slug" />
+          <Route path="/f/:slug/quiz" />
+          <Route path="/f/:slug/resultado" />
+          <Route path="/f/:slug/produto" />
+          <Route path="/f/:slug/indisponivel" />
         </Route>
 
         {/* ===== AUTH ===== */}

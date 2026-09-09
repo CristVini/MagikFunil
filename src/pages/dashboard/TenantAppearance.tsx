@@ -4,7 +4,7 @@ import { useAuth } from '@hooks/useAuth';
 import { useParams } from 'react-router-dom';
 import { Loader2, Palette, Image, Type, Save, Eye, ChevronLeft, ChevronRight, FolderOpen, Trash2, Undo2 } from 'lucide-react';
 import { applyTheme, createThemeFromTenant, DEFAULT_TENANT_THEME, AVAILABLE_FONTS } from '@packages/theme';
-import { cn } from '@lib/utils';
+import { cn, funnelPath } from '@lib/utils';
 
 export function TenantAppearance() {
   const { user } = useAuth();
@@ -204,7 +204,7 @@ export function TenantAppearance() {
             </button>
           </div>
           <iframe
-            src={`/f/${tenant?.slug}`}
+            src={funnelPath(tenant?.slug || '')}
             className="w-full h-[600px] rounded-xl border border-stone-200"
             title="Preview do funil"
           />

@@ -3,7 +3,7 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@lib/supabase";
-import { getSubdomain } from "@lib/utils";
+import { getSubdomain, funnelPath } from "@lib/utils";
 import { applyTheme, createThemeFromTenant, DEFAULT_TENANT_THEME } from "@packages/theme";
 import { ArrowRight, Sparkles, Brain, Zap, Shield } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -98,7 +98,7 @@ export function Landing() {
             </span>
           </div>
           <Link
-            to={`/f/${tenant?.slug || slug}/quiz`}
+            to={`${funnelPath(tenant?.slug || slug, 'quiz')}`}
             className="hidden md:inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--theme-primary)] text-white rounded-xl font-medium hover:brightness-110 transition-all hover:-translate-y-0.5 shadow-lg shadow-black/30"
           >
             {ctaText}
@@ -124,7 +124,7 @@ export function Landing() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
               <Link
-                to={`/f/${tenant?.slug || slug}/quiz`}
+                to={`${funnelPath(tenant?.slug || slug, 'quiz')}`}
                 className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-[var(--theme-primary)] text-white rounded-2xl font-semibold text-lg hover:brightness-110 transition-all hover:scale-[1.02] shadow-lg shadow-black/40 group"
               >
                 {ctaText}
@@ -223,7 +223,7 @@ export function Landing() {
       </section>
 
       {/* Bloco 4.2 — Ciência / Prova (blueprint) */}
-      <ScienceSection onExplore={() => { window.location.href = `/f/${tenant?.slug || slug}/quiz`; }} />
+      <ScienceSection onExplore={() => { window.location.href = `${funnelPath(tenant?.slug || slug, 'quiz')}`; }} />
 
       {/* CTA Final */}
       <section className="relative z-10 py-20 px-6">
@@ -238,7 +238,7 @@ export function Landing() {
                 Responda algumas perguntas simples e comece a se sentir melhor hoje. Sem compromisso, do seu jeito.
               </p>
               <Link
-                to={`/f/${tenant?.slug || slug}/quiz`}
+                to={`${funnelPath(tenant?.slug || slug, 'quiz')}`}
                 className="inline-flex items-center gap-2 px-8 py-4 bg-white text-[var(--theme-primary)] rounded-2xl font-semibold text-lg hover:bg-opacity-90 transition-all hover:scale-[1.02] shadow-lg shadow-black/30"
               >
                 {ctaText}
