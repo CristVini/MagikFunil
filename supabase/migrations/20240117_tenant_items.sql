@@ -262,10 +262,20 @@ begin
     where ti.tenant_id = v_tenant_id
   ) x;
 
-  -- Perfis do funil (para a UI listar as seções e o dropdown de vínculo)
+  -- Perfis do funil (para a UI listar as seções, o dropdown de vínculo
+  -- e o botão "Ver perfil" — conteúdo completo para o cliente entender
+  -- o que aquele resultado significa pro visitante)
   select coalesce(jsonb_agg(prof order by display_order), '[]'::jsonb) into v_profiles
   from (
-    select jsonb_build_object('id', p.id, 'name', p.name, 'color', p.color) as prof,
+    select jsonb_build_object(
+             'id', p.id,
+             'name', p.name,
+             'color', p.color,
+             'archetype', p.archetype,
+             'description', p.description,
+             'scientific_basis', p.scientific_basis,
+             'expected_effect', p.expected_effect
+           ) as prof,
            p.display_order
     from profiles p
     join tenants t on t.template_id = p.template_id

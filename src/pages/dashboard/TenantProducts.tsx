@@ -12,6 +12,8 @@ import {
   X,
   MessageCircle,
   Store,
+  Eye,
+  Brain,
 } from "lucide-react";
 import { supabase } from "@lib/supabase";
 import { useAuth } from "@hooks/useAuth";
@@ -38,6 +40,10 @@ interface Profile {
   id: string;
   name: string;
   color: string;
+  archetype?: string;
+  description?: string;
+  scientific_basis?: string;
+  expected_effect?: string;
 }
 
 function formatPrice(cents?: number | null): string {
@@ -62,6 +68,7 @@ export function TenantProducts() {
     profileId: string;
     itemId: string | null;
   } | null>(null);
+  const [viewingProfile, setViewingProfile] = useState<Profile | null>(null);
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -320,6 +327,14 @@ export function TenantProducts() {
                 >
                   {activeCount}/{perProfileLimit} itens
                 </span>
+                <button
+                  onClick={() => setViewingProfile(profile)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-stone-200 text-stone-700 rounded-lg text-sm font-medium hover:bg-stone-50 hover:border-stone-300 transition-colors"
+                  title="Ver o que este perfil representa para o visitante"
+                >
+                  <Eye size={15} />
+                  Ver perfil
+                </button>
                 <button
                   onClick={() => openNew(profile.id)}
                   disabled={atLimit}
@@ -606,6 +621,121 @@ export function TenantProducts() {
           item" em cada perfil para cadastrar.
         </div>
       </div>
+
+      {/* Modal: Ver perfil — prévia fiel da Coluna 1 (Identidade) da tela de Resultado */}
+      {viewingProfile && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8 bg-black/80 backdrop-blur-xl"
+          onClick={() => setViewingProfile(null)}
+        >
+          <div
+            className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto border rounded-[40px] p-8 md:p-12 animate-in fade-in zoom-in-95 duration-300 shadow-[0_0_100px_rgba(0,0,0,0.6)]"
+            style={{
+              backgroundColor: "var(--theme-dark-surface)",
+              borderColor: "var(--theme-dark-border)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setViewingProfile(null)}
+              className="absolute top-6 right-6 z-50 p-3 bg-black/80 text-white rounded-full hover:bg-stone-100 hover:text-stone-950 transition-all border border-stone-800"
+              aria-label="Fechar"
+            >
+              <X size={20} />
+            </button>
+
+            {/* ===== Mesma renderização da Coluna 1 do Result ===== */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-2 h-2 rounded-full animate-pulse"
+                  style={{
+                    backgroundColor: "var(--theme-accent)",
+                    boxShadow: "0 0 15px var(--theme-accent)",
+                  }}
+                ></div>
+                <span
+                  className="text-[10px] font-bold uppercase tracking-[0.5em]"
+                  style={{ color: "var(--theme-dark-text-muted)" }}
+                >
+                  Diagnóstico Identificado
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <h2
+                  className="text-4xl md:text-6xl font-serif tracking-tighter leading-none"
+                  style={{
+                    color: "var(--theme-dark-text)",
+                    fontFamily: "var(--font-display)",
+                  }}
+                >
+                  {viewingProfile.name}
+                </h2>
+                <p
+                  className="text-xl font-light italic tracking-wide"
+                  style={{ color: "var(--theme-accent)" }}
+                >
+                  {viewingProfile.archetype || ""}
+                </p>
+              </div>
+
+              <div className="space-y-5 pt-3">
+                <div className="space-y-2">
+                  <div
+                    className="flex items-center gap-2"
+                    style={{ color: "var(--theme-dark-text-muted)" }}
+                  >
+                    <Brain size={14} />
+                    <span className="text-[9px] font-bold uppercase tracking-widest">
+                      Base Científica
+                    </span>
+                  </div>
+                  <p
+                    className="text-sm leading-relaxed italic"
+                    style={{ color: "var(--theme-dark-text-muted)" }}
+                  >
+                    {viewingProfile.scientific_basis ||
+                      viewingProfile.description ||
+                      "—"}
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <div
+                    className="flex items-center gap-2"
+                    style={{ color: "var(--theme-dark-text-muted)" }}
+                  >
+                    <Eye size={14} />
+                    <span className="text-[9px] font-bold uppercase tracking-widest">
+                      Efeito Esperado
+                    </span>
+                  </div>
+                  <p
+                    className="text-sm font-medium leading-relaxed"
+                    style={{ color: "var(--theme-dark-text)" }}
+                  >
+                    {viewingProfile.expected_effect || "—"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end mt-8 pt-6 border-t" style={{ borderColor: "var(--theme-dark-border)" }}>
+              <button
+                onClick={() => setViewingProfile(null)}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl font-semibold text-sm transition-transform hover:scale-[1.02]"
+                style={{
+                  backgroundColor: "var(--theme-dark-text)",
+                  color: "var(--theme-dark-background)",
+                }}
+              >
+                Entendi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
