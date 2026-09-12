@@ -18,6 +18,12 @@ export interface Database {
           surface_color: string | null;
           dark_background: string | null;
           dark_surface: string | null;
+          primary_font: string | null;
+          display_font: string | null;
+          text_color: string | null;
+          text_muted: string | null;
+          border_color: string | null;
+          content_background: string | null;
           logo_url: string | null;
           headline: string | null;
           subheadline: string | null;
