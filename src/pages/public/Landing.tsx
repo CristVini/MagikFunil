@@ -31,15 +31,11 @@ export function Landing() {
 
       const lookupSlug = slug || subdomain;
       try {
-        const { data } = await supabase
-          .from("tenants")
-          .select("*")
-          .eq("slug", lookupSlug)
-          .single();
+        const { data } = await supabase.rpc("get_funnel", { p_slug: lookupSlug });
 
-        if (data) {
-          setTenant(data);
-          const tenantTheme = createThemeFromTenant(data);
+        if (data && !data.error && data.tenant) {
+          setTenant(data.tenant);
+          const tenantTheme = createThemeFromTenant(data.tenant);
           applyTheme(tenantTheme);
           setTheme(tenantTheme);
         } else {

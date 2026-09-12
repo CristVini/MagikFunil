@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@hooks/useAuth';
-import { LogOut, Menu, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useFunnel } from '@hooks/useFunnel';
+import { LogOut, Menu, X, ChevronLeft, ChevronRight, Layers, ChevronDown, Check } from 'lucide-react';
 
 export interface SidebarNavItem {
   path: string;
@@ -19,15 +20,24 @@ export function SidebarLayout({ navItems, roleLabel, brandSubtitle }: SidebarLay
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { funnels, activeFunnelId, setActiveFunnel, loadFunnels } = useFunnel();
+  const [funnelMenuOpen, setFunnelMenuOpen] = useState(false);
 
   // Sidebar colapsada (desktop) e drawer aberto (mobile)
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Carrega funis do tenant (só se for painel do cliente)
+  useEffect(() => {
+    if (roleLabel === 'Cliente') loadFunnels();
+  }, [roleLabel]);
+
   // Fecha o drawer ao trocar de rota
   useEffect(() => {
     setMobileOpen(false);
   }, [location.pathname]);
+
+  const activeFunnel = funnels.find((f) => f.id === activeFunnelId);
 
   const handleSignOut = async () => {
     await signOut();
@@ -138,6 +148,61 @@ export function SidebarLayout({ navItems, roleLabel, brandSubtitle }: SidebarLay
             <h2 className="text-lg sm:text-2xl font-display font-bold text-stone-950 truncate" style={{ fontFamily: 'var(--font-display)' }}>
               {currentTitle}
             </h2>
+
+            {/* Seletor de funil (painel do cliente) */}
+            {roleLabel === 'Cliente' && funnels.length > 0 && (
+              <div className="relative ml-auto">
+                <button
+                  onClick={() => setFunnelMenuOpen(!funnelMenuOpen)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium text-stone-700 hover:border-stone-300 transition-colors"
+                >
+                  <Layers size={16} className="text-amber-500" />
+                  <span className="max-w-[160px] truncate">
+                    {activeFunnel?.template_name || 'Funil'}
+                  </span>
+                  <ChevronDown size={14} className={`transition-transform ${funnelMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {funnelMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setFunnelMenuOpen(false)} />
+                    <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl border border-stone-200 shadow-xl z-50 overflow-hidden">
+                      <div className="px-4 py-2.5 bg-stone-50 border-b border-stone-100 text-xs font-semibold text-stone-500 uppercase tracking-wide">
+                        Seus funis
+                      </div>
+                      <div className="max-h-80 overflow-y-auto">
+                        {funnels.map((f) => (
+                          <button
+                            key={f.id}
+                            onClick={() => {
+                              setActiveFunnel(f.id);
+                              setFunnelMenuOpen(false);
+                            }}
+                            className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors ${f.id === activeFunnelId ? 'bg-amber-500/5' : 'hover:bg-stone-50'}`}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-stone-900 truncate flex items-center gap-1.5">
+                                {f.template_name}
+                                {f.is_primary && <span className="text-[10px] font-bold px-1.5 py-0.5 bg-amber-500/15 text-amber-700 rounded">PADRÃO</span>}
+                              </p>
+                              <p className="text-xs text-stone-500 truncate capitalize">
+                                {f.template_niche || 'Geral'} · {f.item_count ?? 0} itens
+                              </p>
+                            </div>
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${f.enabled ? 'bg-green-100 text-green-700' : 'bg-stone-100 text-stone-500'}`}>
+                                {f.enabled ? 'Ativo' : 'Pausado'}
+                              </span>
+                              {f.id === activeFunnelId && <Check size={14} className="text-amber-500" />}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </header>
         <div className="p-4 sm:p-6">

@@ -16,10 +16,6 @@ export function PublicLayout() {
   const layoutSlug = paramSlug || getSubdomain(window ? window.location.hostname : '', import.meta.env.VITE_ROOT_DOMAIN || 'localhost') || undefined;
 
   useEffect(() => {
-    const hostname = window.location.hostname;
-    const rootDomain = import.meta.env.VITE_ROOT_DOMAIN || 'localhost';
-    const slug = getSubdomain(hostname, rootDomain) || undefined;
-
     async function loadTenant() {
       try {
         const previewRaw = window.sessionStorage.getItem('previewTheme');
@@ -36,38 +32,37 @@ export function PublicLayout() {
           return;
         }
 
-        if (!slug) {
+        // Sem slug na URL nem subdomínio: usa o tema padrão (sem tenant)
+        if (!layoutSlug) {
           applyTheme(DEFAULT_TENANT_THEME);
           setTheme(DEFAULT_TENANT_THEME);
           setLoading(false);
           return;
         }
 
-        const { data: tenantData } = await supabase
-          .from('tenants')
-          .select('*')
-          .eq('slug', slug)
-          .single();
+        // Resolve funil/tenant/template pelo slug (tenant_funnels.slug ou template.slug)
+        const { data } = await supabase.rpc('get_funnel', { p_slug: layoutSlug });
 
-        if (tenantData) {
+        if (data && !data.error && data.tenant) {
+          const tenantData = data.tenant;
           setTenant(tenantData);
           const tenantTheme = createThemeFromTenant(tenantData);
           applyTheme(tenantTheme);
           setTheme(tenantTheme);
 
-          const isAvailable = tenantData.status === 'active';
+          const isAvailable = data.tenant_id != null;
           const currentPath = window.location.pathname;
           const isUnavailablePage = currentPath.includes('/indisponivel');
 
           if (!isAvailable && !isUnavailablePage) {
-            setRedirectTo(funnelPath(slug, 'indisponivel'));
+            setRedirectTo(funnelPath(layoutSlug, 'indisponivel'));
           } else if (isAvailable && isUnavailablePage) {
-            setRedirectTo(funnelPath(slug));
+            setRedirectTo(funnelPath(layoutSlug));
           }
         } else {
           applyTheme(DEFAULT_TENANT_THEME);
           setTheme(DEFAULT_TENANT_THEME);
-          setRedirectTo(funnelPath(slug, 'indisponivel'));
+          setRedirectTo(funnelPath(layoutSlug, 'indisponivel'));
         }
       } catch {
         applyTheme(DEFAULT_TENANT_THEME);

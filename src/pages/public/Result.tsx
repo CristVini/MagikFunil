@@ -68,20 +68,9 @@ export function Result() {
     fetchQuiz(slug!).then(() => {
       const r = useQuiz.getState().getResult();
       setResult(r);
-      // O tenant dono do funil já vem no get_funnel (se for cliente real).
-      // Usa-o; a query abaixo é reforço quando o slug não resolveu tenant.
+      // O tenant dono do funil já vem no get_funnel (com tema e whatsapp p/ CTA).
       if (useQuiz.getState().tenant) setTenant(useQuiz.getState().tenant);
     });
-    if (!useQuiz.getState().tenant) {
-      supabase
-        .from("tenants")
-        .select("*")
-        .eq("slug", slug)
-        .single()
-        .then(({ data }: { data: any }) => {
-          if (data) setTenant(data);
-        });
-    }
   }, [slug]);
 
   if (!result) {

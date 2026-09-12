@@ -10,6 +10,9 @@ import {
   Mail,
   Eye,
   Loader2,
+  Layers,
+  X,
+  CheckCircle2,
 } from "lucide-react";
 import { supabase } from "@lib/supabase";
 import { formatCurrency, funnelPath } from "@lib/utils";
@@ -246,6 +249,173 @@ function TenantModal({
   );
 }
 
+// Modal de gestão de funis de um tenant (atribuir/remover)
+function FunnelAssignmentModal({
+  tenant,
+  onClose,
+}: {
+  tenant: TenantRow;
+  onClose: () => void;
+}) {
+  const [funnels, setFunnels] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<any[]>(templatesCache);
+  const [maxFunnels, setMaxFunnels] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const load = () => {
+    setLoading(true);
+    Promise.all([
+      supabase.rpc("list_tenant_funnels", { p_tenant_id: tenant.id }),
+      supabase.from("templates").select("id,name,niche,slug").eq("is_active", true),
+    ]).then(([f, t]: any) => {
+      if (f.data) {
+        setFunnels(f.data.funnels || []);
+        setMaxFunnels(f.data.max_funnels ?? null);
+      }
+      if (t.data) setTemplates(t.data);
+      setLoading(false);
+    });
+  };
+
+  useEffect(load, [tenant.id]);
+
+  const assign = async (templateId: string) => {
+    setBusy(true);
+    setErr(null);
+    const { error } = await supabase.rpc("assign_funnel_to_tenant", {
+      p_tenant_id: tenant.id,
+      p_template_id: templateId,
+    });
+    setBusy(false);
+    if (error) setErr(error.message);
+    else load();
+  };
+
+  const unassign = async (funnelId: string) => {
+    setBusy(true);
+    setErr(null);
+    const { error } = await supabase.rpc("unassign_funnel", { p_funnel_id: funnelId });
+    setBusy(false);
+    if (error) setErr(error.message);
+    else load();
+  };
+
+  // templates ainda não atribuídos
+  const available = templates.filter(
+    (t) => !funnels.some((f) => f.template_id === t.id),
+  );
+  const atLimit = maxFunnels != null && maxFunnels > 0 && funnels.length >= maxFunnels;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-stone-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-2xl w-full p-6 max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-xl font-semibold text-stone-950 flex items-center gap-2">
+              <Layers size={20} className="text-amber-500" /> Funis de {tenant.name}
+            </h2>
+            <p className="text-sm text-stone-500 mt-1">
+              {maxFunnels != null && maxFunnels > 0
+                ? `Limite do plano: ${funnels.length}/${maxFunnels} funis`
+                : "Sem limite de funis"}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-2 text-stone-400 hover:text-stone-600">
+            <X size={20} />
+          </button>
+        </div>
+
+        {err && (
+          <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+            {err}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="w-7 h-7 text-amber-500 animate-spin" />
+          </div>
+        ) : (
+          <>
+            {/* Funis atribuídos */}
+            <div className="space-y-2 mb-5 overflow-y-auto flex-1">
+              <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">
+                Funis atribuídos
+              </p>
+              {funnels.length === 0 && (
+                <p className="text-sm text-stone-400 py-3">Nenhum funil atribuído ainda.</p>
+              )}
+              {funnels.map((f) => (
+                <div
+                  key={f.id}
+                  className="flex items-center gap-3 p-3 bg-stone-50 border border-stone-200 rounded-xl"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-stone-900 truncate flex items-center gap-2">
+                      {f.template_name}
+                      {f.is_primary && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 bg-amber-500/15 text-amber-700 rounded">
+                          PADRÃO
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-xs text-stone-500 truncate capitalize">
+                      {f.template_niche || "Geral"} · <code>{f.slug}</code>
+                    </p>
+                  </div>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${f.enabled ? "bg-green-100 text-green-700" : "bg-stone-100 text-stone-500"}`}>
+                    {f.enabled ? "Ativo" : "Pausado"}
+                  </span>
+                  <button
+                    onClick={() => unassign(f.id)}
+                    disabled={busy}
+                    title="Remover funil"
+                    className="p-2 text-stone-400 hover:text-red-500 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Atribuir novo funil */}
+            <div className="border-t border-stone-100 pt-4">
+              <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">
+                Atribuir funil
+              </p>
+              {atLimit ? (
+                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                  Limite de funis do plano atingido ({maxFunnels}).
+                </p>
+              ) : available.length === 0 ? (
+                <p className="text-sm text-stone-400">
+                  Todos os templates já foram atribuídos a este cliente.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {available.map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => assign(t.id)}
+                      disabled={busy}
+                      className="px-3 py-2 bg-stone-950 text-stone-50 rounded-xl text-sm font-medium hover:bg-stone-800 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      <Plus size={14} />
+                      {t.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function AdminTenants() {
   const [tenants, setTenants] = useState<TenantRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -255,6 +425,7 @@ export function AdminTenants() {
   );
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<TenantRow | null>(null);
+  const [funnelTenant, setFunnelTenant] = useState<TenantRow | null>(null);
 
   const load = () => {
     Promise.all([
@@ -554,6 +725,13 @@ export function AdminTenants() {
                             <Mail size={17} />
                           </a>
                           <button
+                            onClick={() => setFunnelTenant(t)}
+                            title="Gerir funis"
+                            className="p-2 text-stone-400 hover:text-violet-500 rounded-lg transition-colors"
+                          >
+                            <Layers size={17} />
+                          </button>
+                          <button
                             onClick={() => {
                               setEditing(t);
                               setShowModal(true);
@@ -589,6 +767,13 @@ export function AdminTenants() {
             setEditing(null);
           }}
           onSave={handleSave}
+        />
+      )}
+
+      {funnelTenant && (
+        <FunnelAssignmentModal
+          tenant={funnelTenant}
+          onClose={() => setFunnelTenant(null)}
         />
       )}
     </div>

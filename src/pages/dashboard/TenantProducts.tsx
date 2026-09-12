@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@lib/supabase";
 import { useAuth } from "@hooks/useAuth";
+import { useFunnel } from "@hooks/useFunnel";
 
 // Face 2.3 — Produtos: o cliente cadastra LIVREMENTE os itens que fazem
 // sentido para o visitante comprar depois de aquecido pelo funil.
@@ -26,6 +27,7 @@ import { useAuth } from "@hooks/useAuth";
 interface TenantItem {
   id: string;
   profile_id: string;
+  funnel_id?: string;
   name: string;
   description: string;
   key_actives: string[] | null;
@@ -55,6 +57,7 @@ function formatPrice(cents?: number | null): string {
 export function TenantProducts() {
   const { user } = useAuth();
   const tenantId = user?.user_metadata?.tenant_id || user?.id;
+  const { activeFunnelId } = useFunnel();
   const [items, setItems] = useState<TenantItem[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [perProfileLimit, setPerProfileLimit] = useState(0);
@@ -80,7 +83,7 @@ export function TenantProducts() {
 
   const reload = () => {
     supabase
-      .rpc("get_tenant_items")
+      .rpc("get_tenant_items", { p_funnel_id: activeFunnelId ?? undefined })
       .then(({ data, error: err }: { data: any; error: any }) => {
         if (err) {
           setError(err.message);
@@ -94,7 +97,7 @@ export function TenantProducts() {
       });
   };
 
-  useEffect(reload, []);
+  useEffect(reload, [activeFunnelId]);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -158,6 +161,7 @@ export function TenantProducts() {
 
     const { error: err } = await supabase.rpc("upsert_tenant_item", {
       p_tenant_id: tenantId,
+      p_funnel_id: activeFunnelId,
       p_profile_id: editing.profileId,
       p_name: form.name.trim(),
       p_description: form.description || null,
@@ -185,6 +189,7 @@ export function TenantProducts() {
   const toggleEnabled = async (item: TenantItem) => {
     const { error: err } = await supabase.rpc("upsert_tenant_item", {
       p_tenant_id: tenantId,
+      p_funnel_id: activeFunnelId,
       p_profile_id: item.profile_id,
       p_name: item.name,
       p_description: item.description,
@@ -235,6 +240,22 @@ export function TenantProducts() {
           <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
           <p className="text-stone-500">Carregando seus itens...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (!activeFunnelId) {
+    return (
+      <div
+        className="rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center"
+        style={{ fontFamily: "var(--font-sans)" }}
+      >
+        <p className="font-medium text-amber-800">
+          Nenhum funil disponível.
+        </p>
+        <p className="text-sm text-amber-700 mt-1">
+          Você ainda não tem nenhum funil atribuído à sua conta.
+        </p>
       </div>
     );
   }

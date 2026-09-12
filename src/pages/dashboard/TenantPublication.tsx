@@ -3,11 +3,13 @@ import { Globe, Copy, ExternalLink, AlertCircle, CheckCircle, WifiOff, Loader2 a
 import { supabase } from "@lib/supabase";
 import { funnelPath } from "@lib/utils";
 import { useAuth } from "@hooks/useAuth";
+import { useFunnel } from "@hooks/useFunnel";
 
 // Face 2.6 — Publicação: subir/descer o funil, copiar link, validar produtos.
 export function TenantPublication() {
   const { user } = useAuth();
   const tenantId = user?.user_metadata?.tenant_id || user?.id;
+  const { getActive } = useFunnel();
   const [tenant, setTenant] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [status, setStatus] = useState<"draft" | "published" | "paused">("draft");
@@ -29,7 +31,7 @@ export function TenantPublication() {
     });
   }, []);
 
-  const slug = tenant?.slug || "";
+  const slug = getActive()?.slug || tenant?.slug || "";
   // Link por enquanto: /<slug>/funil (path-based) — sem subdomínio até termos DNS wildcard
   const origin = (typeof window !== "undefined" && window.location.origin) || "";
   const finalUrl = slug ? `${origin}${funnelPath(slug)}` : "";
